@@ -4,7 +4,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidMultiplatformLibrary)
-    alias(libs.plugins.kotlinSerialization)
 }
 
 kotlin {
@@ -23,7 +22,7 @@ kotlin {
     }
 
     android {
-       namespace = "org.basadrito.app.core"
+       namespace = "org.basadrito.app.domain"
        compileSdk = libs.versions.android.compileSdk.get().toInt()
        minSdk = libs.versions.android.minSdk.get().toInt()
 
@@ -39,10 +38,6 @@ kotlin {
     }
 
     sourceSets {
-        commonMain.dependencies {
-            implementation(libs.kotlinx.serialization.json)
-            // put your Multiplatform dependencies here
-        }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
