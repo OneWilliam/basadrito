@@ -25,63 +25,53 @@ class IntranetLoginClient(
   private val signInOidcUrl = endpointUrl(intranetBaseUrl, "signin-oidc")
 
   suspend fun login(username: String, password: String): Result<Unit> = apiCall {
-      val verificationToken = atStep(IntranetLoginStep.LOGIN_PAGE) {
-          val loginHtml = client.getTextFollowingRedirects(loginUrl)
-          org.basadrito.app.data.intranet.parser.hiddenInputValue(loginHtml, "__RequestVerificationToken")
-              ?.takeIf { it.isNotBlank() } ?: throw IntranetLoginFailure(IntranetLoginStep.LOGIN_PAGE)
-      }
+        val verificationToken = atStep(IntranetLoginStep.LOGIN_PAGE) {
+            val loginHtml = client.getTextFollowingRedirects(loginUrl)
+            org.basadrito.app.data.intranet.parser.hiddenInputValue(loginHtml, "__RequestVerificationToken")
+                ?.takeIf { it.isNotBlank() } ?: throw IntranetLoginFailure(IntranetLoginStep.LOGIN_PAGE)
+        }
 
-      atStep(IntranetLoginStep.CREDENTIALS) {
+        atStep(IntranetLoginStep.CREDENTIALS) {
+            val response = client.submitForm(
+                url = loginUrl,
+                formParameters = Parameters.build {
+                    append("UserName", username)
+                    append("Password", password)
+                    append("System", "CAMPUS")
+                    append("SystemLogin", "0")
+                    append("__RequestVerificationToken", verificationToken)
+                },
+            ) { expectSuccess = false }
+            if (response.status.value !in 200..399) {
+                throw IntranetLoginFailure(IntranetLoginStep.CREDENTIALS, response.status.value)
+            }
+        }
 
-      val response = client.submitForm(
-          url = loginUrl,
-          formParameters = Parameters.build {
-              append("UserName", username)
-              append("Password", password)
-              append("System", "CAMPUS")
-              append("SystemLogin", "0")
-              append("__RequestVerificationToken", verificationToken)
-          }
-      ) {
-          expectSuccess = false
-      }
-      if(response.status.value !in 200..399) {
-          throw IntranetLoginFailure(IntranetLoginStep.CREDENTIALS, response.status.value)
-      }
-      }
+        val (code, state, sessionState) = atStep(IntranetLoginStep.AUTHORIZATION) {
+            val authorizeHtml = client.getTextFollowingRedirects(intranetBaseUrl)
+            val code = authorizeHtml.findHidden("code")
+                ?.takeIf { it.isNotBlank() } ?: throw IntranetLoginFailure(IntranetLoginStep.AUTHORIZATION)
+            Triple(code, authorizeHtml.findHidden("state") ?: "", authorizeHtml.findHidden("session_state") ?: "")
+        }
 
-      val authorizeHtml = atStep(IntranetLoginStep.AUTHORIZATION) {
-          client.getTextFollowingRedirects(intranetBaseUrl)
-      }
+        atStep(IntranetLoginStep.CALLBACK) {
+            val response = client.submitForm(
+                url = signInOidcUrl,
+                formParameters = Parameters.build {
+                    append("code", code)
+                    append("scope", "openid profile roles")
+                    append("state", state)
+                    append("session_state", sessionState)
+                },
+            ) { expectSuccess = false }
+            if (response.status.value !in 200..399) {
+                throw IntranetLoginFailure(IntranetLoginStep.CALLBACK, response.status.value)
+            }
+        }
+        verifyProfile()
+    }
 
-      val code = authorizeHtml.findHidden("code")
-      ?: error("No se encontró code en la respuesta de authorize. Credenciales Incorrectas?")
-      val state = authorizeHtml.findHidden("state") ?: ""
-      val sessionState = authorizeHtml.findHidden("session_state") ?: ""
-
- atStep(IntranetLoginStep.CALLBACK) { atStep(IntranetLoginStep.CALLBACK) {
-      val response = client.submitForm(
-          url = signInOidcUrl,
-          formParameters = Parameters.build {
-              append("code", code)
-              append("scope", "openid profile roles")
-              append("state", state)
-              append("session_state", sessionState)
-          }
-
-      ) {
-          expectSuccess = false
-      }
-
-      if (response.status.value !in 200..399) {
-          throw IntranetLoginFailure(IntranetLoginStep.CALLBACK, response.status.value)
-      }
-  }
-  verifyProfile()
-}
-  }
-
-  private suspend fun verifyProfile() = atStep(IntranetLoginStep.PROFILE) {
+    private suspend fun verifyProfile() = atStep(IntranetLoginStep.PROFILE) {
       val response = client.get(endpointUrl(intranetBaseUrl, "perfil")) { expectSuccess = false }
       if (response.status.value != 200) throw IntranetLoginFailure(IntranetLoginStep.PROFILE, response.status.value)
       if (!IntranetSessionParser.isAuthenticatedProfile(response.bodyAsText())) {
@@ -91,14 +81,11 @@ class IntranetLoginClient(
 
 
   suspend fun isAuthenticated(): Boolean = apiCall {
-      val response = client.get(endpointUrl(intranetBaseUrl, "perfil")) { expectSuccess = false }
-      if (response.status.value != 200) throw IntranetLoginFailure(IntranetLoginStep.PROFILE, response.status.value)
-      if (!IntranetSessionParser.isAuthenticatedProfile(response.bodyAsText())) {
-          throw IntranetLoginFailure(IntranetLoginStep.PROFILE, response.status.value)
-      }
-  }
+        verifyProfile()
+        true
+    }.getOrDefault(false)
 
-  private fun String.findHidden(name: String): String? =
+    private fun String.findHidden(name: String): String? =
       org.basadrito.app.data.intranet.parser.hiddenInputValue(this, name)
 
       private suspend fun <T> atStep(step: IntranetLoginStep, block: suspend () -> T): T = try {
