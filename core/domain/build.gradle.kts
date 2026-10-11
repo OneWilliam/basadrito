@@ -9,23 +9,23 @@ plugins {
 kotlin {
     iosArm64()
     iosSimulatorArm64()
-    
+
     jvm()
-    
+
     js {
         browser()
     }
-    
+
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
     }
-    
+
     android {
-       namespace = "org.basadrito.app.core"
+       namespace = "org.basadrito.app.domain"
        compileSdk = libs.versions.android.compileSdk.get().toInt()
        minSdk = libs.versions.android.minSdk.get().toInt()
-    
+
        compilerOptions {
            jvmTarget = JvmTarget.JVM_11
        }
@@ -36,11 +36,8 @@ kotlin {
            isIncludeAndroidResources = true
        }
     }
-    
+
     sourceSets {
-        commonMain.dependencies {
-            // put your Multiplatform dependencies here
-        }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
