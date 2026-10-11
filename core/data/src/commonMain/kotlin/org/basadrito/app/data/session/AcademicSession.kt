@@ -17,7 +17,7 @@ class AcademicSession(
         return Connection(createClients()).also { connection = it }
     }
 
-    internal fun activate(candidate: Connection, moodle: MoodleSession) {
+    internal fun activate(candidate: Connection, moodle: MoodleSession): Boolean {
         if( connection !== candidate) {
             return false
         }

@@ -21,9 +21,6 @@ kotlin {
         compilerOptions { jvmTarget = JvmTarget.JVM_11 }
     }
     sourceSets {
-        commonMain {
-            kotlin.exclude("org/basadrito/app/data/intranet/**")
-        }
         commonMain.dependencies {
             implementation(project(":core:domain"))
             implementation(libs.kotlinx.coroutines.core)

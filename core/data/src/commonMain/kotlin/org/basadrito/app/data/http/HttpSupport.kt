@@ -10,6 +10,8 @@ import io.ktor.http.URLBuilder
 import io.ktor.http.encodedPath
 import io.ktor.http.takeFrom
 import kotlin.coroutines.cancellation.CancellationException
+import io.ktor.client.plugins.expectSuccess
+
 
 suspend fun <T> apiCall(block: suspend () -> T): Result<T> = try {
     Result.success(block())
@@ -48,13 +50,17 @@ internal suspend fun HttpClient.getTextFollowingRedirects(url: String, maxHops: 
     var current = url;
     var hops = 0
     while (hops < maxHops) {
-        val response: HttpResponse = get(current)
+        val response: HttpResponse = get(current) {
+            expectSuccess = false
+        }
         val location = response.headers[HttpHeaders.Location]
-        if(response.status.value in 300..399 && location != null) {
+        if(response.status.value in 300..399) {
+            require(!location.isNullOrBlank()) { "Redirección sin destino." }
             current = resolveLocation(current, location)
             hops++
             continue
         }
+        check(response.status.value in 200..299) { "Respuesta no válida: ${response.status.value}" }
         return response.bodyAsText()
     }
     error("Excedido el número máximo de redirecciones.")

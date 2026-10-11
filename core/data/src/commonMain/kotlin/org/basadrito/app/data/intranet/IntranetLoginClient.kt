@@ -1,5 +1,6 @@
 package org.basadrito.app.data.intranet
 
+import org.basadrito.app.data.intranet.parser.IntranetSessionParser
 import org.basadrito.app.data.http.apiCall
 import org.basadrito.app.data.http.endpointUrl
 import org.basadrito.app.data.http.AppJson
@@ -9,7 +10,10 @@ import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.Parameters
-
+import io.ktor.client.plugins.expectSuccess
+import kotlin.coroutines.cancellation.CancellationException
+import io.ktor.client.plugins.ResponseException
+import org.basadrito.app.data.intranet.parser.IntranetHtmlParser
 
 class IntranetLoginClient(
     private val client: HttpClient,
@@ -21,28 +25,41 @@ class IntranetLoginClient(
   private val signInOidcUrl = endpointUrl(intranetBaseUrl, "signin-oidc")
 
   suspend fun login(username: String, password: String): Result<Unit> = apiCall {
-      val loginHtml = client.getTextFollowingRedirects(loginUrl)
-      val verificationUrl = org.basadrito.app.data.intranet.parser.hiddenInputValue(loginHtml, "__RequestVerificationToken")
-      ?: error ("No se encontró __RequestVerificationToken en $loginUrl")
+      val verificationToken = atStep(IntranetLoginStep.LOGIN_PAGE) {
+          val loginHtml = client.getTextFollowingRedirects(loginUrl)
+          org.basadrito.app.data.intranet.parser.hiddenInputValue(loginHtml, "__RequestVerificationToken")
+              ?.takeIf { it.isNotBlank() } ?: throw IntranetLoginFailure(IntranetLoginStep.LOGIN_PAGE)
+      }
 
-      client.submitForm(
+      atStep(IntranetLoginStep.CREDENTIALS) {
+
+      val response = client.submitForm(
           url = loginUrl,
           formParameters = Parameters.build {
-              append("username", username)
-              append("password", password)
-              append("sytem", "CAMPUS")
-              append("SytemLogin", "0")
-              append("__RequestVerificationToken", verificationUrl)
+              append("UserName", username)
+              append("Password", password)
+              append("System", "CAMPUS")
+              append("SystemLogin", "0")
+              append("__RequestVerificationToken", verificationToken)
           }
-      )
+      ) {
+          expectSuccess = false
+      }
+      if(response.status.value !in 200..399) {
+          throw IntranetLoginFailure(IntranetLoginStep.CREDENTIALS, response.status.value)
+      }
+      }
 
-      val authorizeHtml = client.getTextFollowingRedirects(intranetBaseUrl)
+      val authorizeHtml = atStep(IntranetLoginStep.AUTHORIZATION) {
+          client.getTextFollowingRedirects(intranetBaseUrl)
+      }
 
       val code = authorizeHtml.findHidden("code")
       ?: error("No se encontró code en la respuesta de authorize. Credenciales Incorrectas?")
       val state = authorizeHtml.findHidden("state") ?: ""
       val sessionState = authorizeHtml.findHidden("session_state") ?: ""
 
+ atStep(IntranetLoginStep.CALLBACK) { atStep(IntranetLoginStep.CALLBACK) {
       val response = client.submitForm(
           url = signInOidcUrl,
           formParameters = Parameters.build {
@@ -52,25 +69,49 @@ class IntranetLoginClient(
               append("session_state", sessionState)
           }
 
-      )
-
-      require(response.status.value in 200..399) {"Intranet rechazo el acceso."}
-      require(isAuthenticated()) {
-          "No se pudo comprobar la sesión de Intranet."
+      ) {
+          expectSuccess = false
       }
 
-
+      if (response.status.value !in 200..399) {
+          throw IntranetLoginFailure(IntranetLoginStep.CALLBACK, response.status.value)
+      }
+  }
+  verifyProfile()
+}
   }
 
+  private suspend fun verifyProfile() = atStep(IntranetLoginStep.PROFILE) {
+      val response = client.get(endpointUrl(intranetBaseUrl, "perfil")) { expectSuccess = false }
+      if (response.status.value != 200) throw IntranetLoginFailure(IntranetLoginStep.PROFILE, response.status.value)
+      if (!IntranetSessionParser.isAuthenticatedProfile(response.bodyAsText())) {
+          throw IntranetLoginFailure(IntranetLoginStep.PROFILE, response.status.value)
+      }
+  }
+
+
   suspend fun isAuthenticated(): Boolean = apiCall {
-      val response = client.get(endpointUrl(intranetBaseUrl, "perfil"))
-      if(response.status.value != 200) return@apiCall false
-      val profile  = org.basadrito.app.data.intranet.parser.IntranetHtmlParser.parseProfile(response.bodyAsText())
-      profile.code.isNotBlank() && profile.fullName.isNotBlank()
-  }.getOrDefault(false)
+      val response = client.get(endpointUrl(intranetBaseUrl, "perfil")) { expectSuccess = false }
+      if (response.status.value != 200) throw IntranetLoginFailure(IntranetLoginStep.PROFILE, response.status.value)
+      if (!IntranetSessionParser.isAuthenticatedProfile(response.bodyAsText())) {
+          throw IntranetLoginFailure(IntranetLoginStep.PROFILE, response.status.value)
+      }
+  }
 
   private fun String.findHidden(name: String): String? =
       org.basadrito.app.data.intranet.parser.hiddenInputValue(this, name)
+
+      private suspend fun <T> atStep(step: IntranetLoginStep, block: suspend () -> T): T = try {
+          block()
+      } catch (cancelled: CancellationException) {
+          throw cancelled
+      } catch (failure: IntranetLoginFailure) {
+          throw failure
+      } catch (http: ResponseException) {
+          throw IntranetLoginFailure(step, http.response.status.value)
+      } catch (_: Exception) {
+          throw IntranetLoginFailure(step)
+      }
 
   companion object {
       const val DEFAULT_CAMPUS_URL = "https://campus.unjbg.edu.pe"
