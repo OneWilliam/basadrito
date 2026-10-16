@@ -82,16 +82,3 @@ Para comprobar una cuenta autorizada, configurar localmente `BASADRITO_USERNAME`
 ~~~powershell
 .\gradlew.bat :tools:integration-probe:run
 ~~~
-
-## Tests
-
-| Archivo de pruebas | Casos | Comportamientos comprobados |
-|---|---:|---|
-| `IntranetLoginClientTest` | 5 | Formularios, campos, redirecciones, cookies, autorización, perfil y comprobación posterior de sesión; rechazo HTTP y login devuelto con HTTP 200. |
-| `AuthRepositoryTest` | 3 | Éxito conjunto; rechazo de Moodle/Intranet y transporte; cancelación y cierre del cliente provisional. Un caso recorre varias variantes de fallo. |
-| `AcademicSessionTest` | 3 | Cambio de cuenta sin heredar token/cookies; logout con activación tardía; candidato antiguo incapaz de descartar la cuenta nueva. |
-| `IntranetSessionParserTest` | 2 | Nombre extraído sin asumir código/correo; rechazo de HTML vacío, similar, comentado, en script o perteneciente al login. |
-
-## Extras
-
-El HTML está basado en las convenciones de secuencia y el estilo predeterminado de [diagram-design](https://github.com/cathrynlavery/diagram-design) y exportado a SVG.

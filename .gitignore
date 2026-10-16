@@ -21,3 +21,5 @@ node_modules/
 -antigravity/
 
 .env
+.env.*
+!.env.example
