@@ -1,0 +1,55 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Basadrito — Las partes de Basadrito</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif&amp;family=Geist:wght@400;600&amp;family=Geist+Mono&amp;display=swap">
+<style>*{box-sizing:border-box}body{margin:0;padding:40px 24px;background:#f5f5f5;color:#2d3142;font-family:'Geist',system-ui,sans-serif}.frame{max-width:1048px;min-width:0;margin:auto}.eyebrow{font:10px 'Geist Mono',monospace;letter-spacing:.14em;color:#4f5d75}h1{font:400 28px 'Instrument Serif',serif;margin:12px 0}.intro,.caption{font-size:14px;line-height:1.6;color:#4f5d75;max-width:900px}.diagram-container{width:100%;overflow-x:auto}svg{display:block;width:100%;min-width:1000px}.caption{border-top:1px solid #bfc0c0;padding-top:16px}@media print{body{padding:0}.diagram-container{overflow:visible}svg{min-width:0}}</style></head><body><main class="frame"><p class="eyebrow">BASADRITO · ARQUITECTURA OBJETIVO · 2026-10-11</p><h1>Las partes de Basadrito</h1><p class="intro">Vista axonométrica en proyección dimétrica 2:1: las tres partes se separan para reconocer su responsabilidad.</p><div class="diagram-container"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 640" role="img" aria-labelledby="layers-title layers-desc">
+<title id="layers-title">Partes de la aplicación</title>
+<desc id="layers-desc">Vista axonométrica de datos, dominio y presentación separados verticalmente. La organización visual no expresa dependencias de código.</desc>
+<defs><marker id="layers-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#4f5d75"/></marker></defs>
+<rect width="1000" height="640" fill="#f5f5f5"/>
+<g data-exploded="true" data-origin="330 380" data-gap="112">
+<line data-role="trace" x1="170" y1="476.0" x2="170" y2="220.0" stroke="#2d3142" stroke-opacity="0.3" stroke-width="0.8" stroke-dasharray="4,3"/>
+<line data-role="trace" x1="610" y1="536.0" x2="610" y2="280.0" stroke="#2d3142" stroke-opacity="0.3" stroke-width="0.8" stroke-dasharray="4,3"/>
+<g data-part="data" data-name="Datos" data-rect="0 0 280 160 0" data-z="0" data-t="16" data-level="0">
+<path data-role="silhouette" d="M 330 380 L 610 520 L 610 536 L 450 616 L 170 476 L 170 460 Z" fill="white" stroke="#2d3142" stroke-width="1.2"/>
+<polygon points="330,380 610,520 450,600 170,460" fill="#ffffff"/>
+<polygon points="170,460 450,600 450,616 170,476" fill="#f0f1f2"/>
+<polygon points="610,520 450,600 450,616 610,536" fill="#e0e0e3"/>
+<path d="M 330 380 L 610 520 L 610 536 L 450 616 L 170 476 L 170 460 Z" fill="none" stroke="#2d3142" stroke-width="1.2"/>
+<line x1="170" y1="460.0" x2="450" y2="600.0" stroke="#2d3142" stroke-opacity="0.55" stroke-width="0.8"/>
+<line x1="610" y1="520.0" x2="450" y2="600.0" stroke="#2d3142" stroke-opacity="0.55" stroke-width="0.8"/>
+<line x1="450" y1="600.0" x2="450" y2="616.0" stroke="#2d3142" stroke-opacity="0.55" stroke-width="0.8"/>
+<g data-role="label">
+<circle cx="610" cy="528.0" r="2" fill="#4f5d75"/><line data-role="leader" x1="616" y1="528.0" x2="668" y2="528.0" stroke="#4f5d75" stroke-width="0.8"/>
+<text data-role="name" x="680" y="522.0" fill="#2d3142" font-family="'Geist',system-ui,sans-serif" font-size="16" font-weight="600">Datos</text>
+<text x="680" y="543.0" fill="#4f5d75" font-family="'Geist Mono',ui-monospace,monospace" font-size="10" font-weight="400">HTTP · PARSERS · DB · SESIÓN</text>
+</g></g>
+<g data-part="domain" data-name="Dominio" data-rect="0 0 280 160 0" data-z="128" data-t="16" data-level="1" data-focal="true">
+<path data-role="silhouette" d="M 330 252 L 610 392 L 610 408 L 450 488 L 170 348 L 170 332 Z" fill="white" stroke="#2d3142" stroke-width="1.2"/>
+<polygon points="330,252 610,392 450,472 170,332" fill="#f9ece8"/>
+<polygon points="170,332 450,472 450,488 170,348" fill="#f2dad2"/>
+<polygon points="610,392 450,472 450,488 610,408" fill="#eac3b8"/>
+<path d="M 330 252 L 610 392 L 610 408 L 450 488 L 170 348 L 170 332 Z" fill="none" stroke="#2d3142" stroke-width="1.2"/>
+<line x1="170" y1="332.0" x2="450" y2="472.0" stroke="#2d3142" stroke-opacity="0.55" stroke-width="0.8"/>
+<line x1="610" y1="392.0" x2="450" y2="472.0" stroke="#2d3142" stroke-opacity="0.55" stroke-width="0.8"/>
+<line x1="450" y1="472.0" x2="450" y2="488.0" stroke="#2d3142" stroke-opacity="0.55" stroke-width="0.8"/>
+<g data-role="label">
+<circle cx="610" cy="400.0" r="2" fill="#bf4520"/><line data-role="leader" x1="616" y1="400.0" x2="668" y2="400.0" stroke="#bf4520" stroke-width="0.8"/>
+<text data-role="name" x="680" y="394.0" fill="#2d3142" font-family="'Geist',system-ui,sans-serif" font-size="16" font-weight="600">Dominio</text>
+<text x="680" y="415.0" fill="#bf4520" font-family="'Geist Mono',ui-monospace,monospace" font-size="10" font-weight="400">MODELOS · CONTRATOS · REGLAS</text>
+</g></g>
+<g data-part="ui" data-name="Presentación" data-rect="0 0 280 160 0" data-z="256" data-t="16" data-level="2">
+<path data-role="silhouette" d="M 330 124 L 610 264 L 610 280 L 450 360 L 170 220 L 170 204 Z" fill="white" stroke="#2d3142" stroke-width="1.2"/>
+<polygon points="330,124 610,264 450,344 170,204" fill="#ffffff"/>
+<polygon points="170,204 450,344 450,360 170,220" fill="#f0f1f2"/>
+<polygon points="610,264 450,344 450,360 610,280" fill="#e0e0e3"/>
+<path d="M 330 124 L 610 264 L 610 280 L 450 360 L 170 220 L 170 204 Z" fill="none" stroke="#2d3142" stroke-width="1.2"/>
+<line x1="170" y1="204.0" x2="450" y2="344.0" stroke="#2d3142" stroke-opacity="0.55" stroke-width="0.8"/>
+<line x1="610" y1="264.0" x2="450" y2="344.0" stroke="#2d3142" stroke-opacity="0.55" stroke-width="0.8"/>
+<line x1="450" y1="344.0" x2="450" y2="360.0" stroke="#2d3142" stroke-opacity="0.55" stroke-width="0.8"/>
+<g data-role="label">
+<circle cx="610" cy="272.0" r="2" fill="#4f5d75"/><line data-role="leader" x1="616" y1="272.0" x2="668" y2="272.0" stroke="#4f5d75" stroke-width="0.8"/>
+<text data-role="name" x="680" y="266.0" fill="#2d3142" font-family="'Geist',system-ui,sans-serif" font-size="16" font-weight="600">Presentación</text>
+<text x="680" y="287.0" fill="#4f5d75" font-family="'Geist Mono',ui-monospace,monospace" font-size="10" font-weight="400">FEATURES · MVVM · NAVEGACIÓN</text>
+</g></g>
+</g>
+<text x="90" y="632" fill="#4f5d75" font-family="'Geist',system-ui,sans-serif" font-size="12" font-weight="600">Vista de partes. Para dependencias, consulta el mapa de módulos.</text>
+</svg></div><p class="caption">La representación espacial es una ayuda de lectura. No implica que domain dependa de data, ni que presentación ejecute siempre antes que dominio. Cada parte corresponde a responsabilidades que se conectan mediante contratos. Las ubicaciones reales se muestran en la vista de ejecución.</p><p class="caption">Estilo predeterminado de diagram-design. El HTML es la fuente editable; el SVG exportado acompaña la documentación.</p></main></body></html>
