@@ -25,6 +25,7 @@ class AcademicSession(
         candidate.moodle = moodle
         return true
     }
+    internal fun authenticated(): Connection? = connection?.takeIf { it.moodle != null }
 
     internal fun isCurrent(candidate: Connection): Boolean {
         return connection == candidate
