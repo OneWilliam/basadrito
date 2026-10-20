@@ -55,10 +55,12 @@ kotlin {
 
     sourceSets {
         androidMain.dependencies {
+            implementation(libs.kotlinx.coroutines.core)
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
         }
         commonMain.dependencies {
+            implementation(project(":core:domain"))
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
