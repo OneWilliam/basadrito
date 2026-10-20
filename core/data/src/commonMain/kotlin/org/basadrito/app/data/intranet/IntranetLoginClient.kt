@@ -1,30 +1,32 @@
 package org.basadrito.app.data.intranet
 
-import org.basadrito.app.data.intranet.parser.IntranetSessionParser
 import org.basadrito.app.data.http.apiCall
 import org.basadrito.app.data.http.endpointUrl
-import org.basadrito.app.data.http.AppJson
 import org.basadrito.app.data.http.getTextFollowingRedirects
+import org.basadrito.app.data.intranet.parser.IntranetSessionParser
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.ResponseException
+import io.ktor.client.plugins.expectSuccess
 import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.Parameters
-import io.ktor.client.plugins.expectSuccess
+import io.ktor.http.HttpHeaders
+import io.ktor.http.Url
+import org.basadrito.app.data.http.resolveLocation
 import kotlin.coroutines.cancellation.CancellationException
-import io.ktor.client.plugins.ResponseException
-import org.basadrito.app.data.intranet.parser.IntranetHtmlParser
+
 
 class IntranetLoginClient(
     private val client: HttpClient,
     private val campusBaseUrl: String = DEFAULT_CAMPUS_URL,
-    private val intranetBaseUrl: String = DEFAULT_INTRANET_URL
+    private val intranetBaseUrl: String = DEFAULT_INTRANET_URL,
 ) {
-  private val loginUrl = endpointUrl(campusBaseUrl, "login")
 
-  private val signInOidcUrl = endpointUrl(intranetBaseUrl, "signin-oidc")
+    private val loginUrl = endpointUrl(campusBaseUrl, "login")
+    private val signInOidcUrl = endpointUrl(intranetBaseUrl, "signin-oidc")
 
-  suspend fun login(username: String, password: String): Result<Unit> = apiCall {
+    suspend fun login(username: String, password: String): Result<Unit> = apiCall {
         val verificationToken = atStep(IntranetLoginStep.LOGIN_PAGE) {
             val loginHtml = client.getTextFollowingRedirects(loginUrl)
             org.basadrito.app.data.intranet.parser.hiddenInputValue(loginHtml, "__RequestVerificationToken")
@@ -72,36 +74,46 @@ class IntranetLoginClient(
     }
 
     private suspend fun verifyProfile() = atStep(IntranetLoginStep.PROFILE) {
-      val response = client.get(endpointUrl(intranetBaseUrl, "perfil")) { expectSuccess = false }
-      if (response.status.value != 200) throw IntranetLoginFailure(IntranetLoginStep.PROFILE, response.status.value)
-      if (!IntranetSessionParser.isAuthenticatedProfile(response.bodyAsText())) {
-          throw IntranetLoginFailure(IntranetLoginStep.PROFILE, response.status.value)
-      }
-  }
+        val response = client.get(endpointUrl(intranetBaseUrl, "perfil")) { expectSuccess = false }
+        if (response.status.value in 300..399) {
+            val location = response.headers[HttpHeaders.Location]
+            if (location != null) {
+                val target = Url(resolveLocation(response.call.request.url.toString(), location))
+                if (target.host == Url(intranetBaseUrl).host &&
+                    target.encodedPath.trimEnd('/') == EVALUATION_PATH) {
+                    throw IntranetLoginFailure(IntranetLoginStep.EVALUATION_REQUIRED, response.status.value)
+                }
+            }
+        }
+        if (response.status.value != 200) throw IntranetLoginFailure(IntranetLoginStep.PROFILE, response.status.value)
+        if (!IntranetSessionParser.isAuthenticatedProfile(response.bodyAsText())) {
+            throw IntranetLoginFailure(IntranetLoginStep.PROFILE, response.status.value)
+        }
+    }
 
-
-  suspend fun isAuthenticated(): Boolean = apiCall {
+    suspend fun isAuthenticated(): Boolean = apiCall {
         verifyProfile()
         true
     }.getOrDefault(false)
 
     private fun String.findHidden(name: String): String? =
-      org.basadrito.app.data.intranet.parser.hiddenInputValue(this, name)
+        org.basadrito.app.data.intranet.parser.hiddenInputValue(this, name)
 
-      private suspend fun <T> atStep(step: IntranetLoginStep, block: suspend () -> T): T = try {
-          block()
-      } catch (cancelled: CancellationException) {
-          throw cancelled
-      } catch (failure: IntranetLoginFailure) {
-          throw failure
-      } catch (http: ResponseException) {
-          throw IntranetLoginFailure(step, http.response.status.value)
-      } catch (_: Exception) {
-          throw IntranetLoginFailure(step)
-      }
+    private suspend fun <T> atStep(step: IntranetLoginStep, block: suspend () -> T): T = try {
+        block()
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (failure: IntranetLoginFailure) {
+        throw failure
+    } catch (http: ResponseException) {
+        throw IntranetLoginFailure(step, http.response.status.value, http)
+    } catch (error: Exception) {
+        throw IntranetLoginFailure(step, cause = error)
+    }
 
-  companion object {
-      const val DEFAULT_CAMPUS_URL = "https://campus.unjbg.edu.pe"
-      const val DEFAULT_INTRANET_URL = "https://intranet.unjbg.edu.pe"
-  }
+    companion object {
+        const val DEFAULT_CAMPUS_URL = "https://campus.unjbg.edu.pe"
+        const val DEFAULT_INTRANET_URL = "https://intranet.unjbg.edu.pe"
+        const val EVALUATION_PATH = "/alumno/evaluacion-docente"
+    }
 }
