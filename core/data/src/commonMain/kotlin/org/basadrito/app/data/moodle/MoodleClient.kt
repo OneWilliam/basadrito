@@ -9,12 +9,15 @@ import io.ktor.client.request.forms.submitForm
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.Parameters
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import org.basadrito.app.data.moodle.dto.*
 
 class MoodleClient(
     private val client: HttpClient,
     private val baseUrl: String = DEFAULT_BASE_URL,
 ) {
+    // Moodle mobile web services authenticate with wstoken, independently of browser cookies.
+    // token.php needs credentials again after expiry; privatetoken is not a refresh token.
     suspend fun getToken(username: String, password: String): Result<MoodleTokenResponse> = apiCall {
         val response = client.submitForm(endpointUrl(baseUrl, "login/token.php"), Parameters.build {
             append("username", username); append("password", password); append("service", MoodleFunctions.SERVICE)
@@ -47,9 +50,13 @@ class MoodleClient(
         val text = response.bodyAsText()
         val parsed = AppJson.parseToJsonElement(text)
         if (parsed is JsonObject && ("exception" in parsed || "errorcode" in parsed || "error" in parsed)) {
+            val code = (parsed["errorcode"] as? JsonPrimitive)?.content
+            if (code in setOf("invalidtoken", "requireloginerror", "notloggedin")) throw MoodleSessionExpired()
             error("Moodle rechazó la consulta.")
         }
         return AppJson.decodeFromString<T>(text)
     }
     companion object { const val DEFAULT_BASE_URL = "https://aula.unjbg.edu.pe" }
 }
+
+internal class MoodleSessionExpired : IllegalStateException("La sesión de Moodle caducó.")

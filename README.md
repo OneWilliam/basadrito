@@ -24,7 +24,8 @@ El proyecto está en desarrollo. La base de autenticación Moodle/Intranet, la s
 | Autenticación y comprobación de perfil | Implementadas y probadas en JVM. |
 | Herramienta de integración por consola | Disponible para acceso, perfil y consulta de cursos. |
 | UI Android y navegación funcional | En construcción; diseño y organización previstos por feature. |
-| Caché local y recuperación protegida de sesión | Planificadas; estrategia descrita abajo. |
+| Recuperación protegida de sesión | Implementada en Android con token/cookies cifrados y validación al abrir. |
+| Caché académica local | Planificada; estrategia descrita abajo. |
 | Escritorio y web/BFF | Contemplados en la arquitectura; integración posterior. |
 
 ## Arquitectura
@@ -94,7 +95,7 @@ La [guía de estructura KMP](docs/estructura-del-proyecto.md) desarrolla el árb
 La persistencia se incorporará por responsabilidad:
 
 - **Caché académica local:** SQLite con Room para Android. Guardará datos por cuenta, proveedor y período, con fecha de actualización. Los destinos nativos/JVM compartirán lo compatible; web tendrá su adaptador cuando necesite persistencia local.
-- **Sesión:** tokens y cookies recuperables irán en almacenamiento protegido de plataforma, separado de las tablas académicas. En Android se prevé cifrado con claves protegidas por Keystore. La recuperación dependerá de la validez que mantengan los proveedores.
+- **Sesión:** Android conserva tokens y cookies con AES-256-GCM y una clave de Keystore, en un archivo privado excluido de copias de seguridad. Al abrir comprueba Moodle e Intranet; permite reintentar ante falta de conexión y solicita login si el acceso dejó de ser válido. No guarda contraseñas. La persistencia de otras plataformas sigue pendiente.
 - **Preferencias:** tema y filtros pequeños usarán un almacén de preferencias.
 - **Datos propios del BFF:** SQLite se preve cuando existan requisitos de persistencia del servicio, como preferencias entre dispositivos o recordatorios.
 

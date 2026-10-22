@@ -1,46 +1,99 @@
 package org.basadrito.app.data.session
 
+import io.ktor.client.plugins.cookies.CookiesStorage
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.getAndUpdate
 import org.basadrito.app.data.di.IntegrationClients
+import org.basadrito.app.data.http.createHttpClient
 import org.basadrito.app.data.moodle.dto.MoodleSession
+import kotlin.coroutines.cancellation.CancellationException
 
 
 
 class AcademicSession(
-    private val createClients: () -> IntegrationClients = { IntegrationClients() }
+    private val store: SessionStore = NoSessionStore,
+    private val createClients: (CookiesStorage) -> IntegrationClients = { IntegrationClients(createHttpClient(it)) },
 ) {
-    internal class Connection(val clients: IntegrationClients, var moodle: MoodleSession? = null)
+    internal class Connection(
+        val clients: IntegrationClients,
+        val cookies: SessionCookieStorage,
+        var moodle: MoodleSession? = null,
+    )
 
-    private var connection: Connection? = null
+    private val connection = MutableStateFlow<Connection?>(null)
 
     internal fun begin(): Connection {
         clear()
-        return Connection(createClients()).also { connection = it }
+        return newConnection()
+    }
+
+    internal fun beginRestoration(): Connection {
+        releaseMemory()
+        return newConnection()
+    }
+
+    private fun newConnection(): Connection {
+        val cookies = SessionCookieStorage()
+        val candidate = Connection(createClients(cookies), cookies)
+        cookies.onChanged = { snapshot -> persist(candidate, snapshot) }
+        connection.value = candidate
+        return candidate
     }
 
     internal fun activate(candidate: Connection, moodle: MoodleSession): Boolean {
-        if( connection !== candidate) {
+        if (!isCurrent(candidate)) {
             return false
         }
 
         candidate.moodle = moodle
+        if (!isCurrent(candidate)) {
+            candidate.moodle = null
+            return false
+        }
         return true
     }
-    internal fun authenticated(): Connection? = connection?.takeIf { it.moodle != null }
+    internal fun authenticated(): Connection? = connection.value?.takeIf { it.moodle != null }
 
     internal fun isCurrent(candidate: Connection): Boolean {
-        return connection == candidate
+        return connection.value === candidate
     }
 
+    internal suspend fun saved(candidate: Connection): SavedSession? = store.load().also { requireCurrent(candidate) }
+
+    internal suspend fun persist(candidate: Connection): Boolean = candidate.cookies.withSnapshot { persist(candidate, it) }
+
+    private suspend fun persist(candidate: Connection, cookies: List<SavedCookie>): Boolean {
+        val moodle = candidate.moodle ?: return false
+        if (!isCurrent(candidate)) return false
+        return try {
+            store.save(SavedSession(moodle, cookies)) { isCurrent(candidate) && candidate.moodle != null } && isCurrent(candidate)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            false // Authentication can still work; the UI reports that access was not remembered.
+        }
+    }
+
+    internal fun requireCurrent(candidate: Connection) {
+        if (!isCurrent(candidate)) throw CancellationException("La sesión cambió.")
+    }
+
+    internal fun forgetSaved(candidate: Connection) { store.clear { isCurrent(candidate) } }
 
     internal fun discard(candidate: Connection) {
-        if (connection == candidate) {
-            clear()
+        if (connection.compareAndSet(candidate, null)) {
+            close(candidate)
         }
     }
     internal fun clear() {
-        val previous = connection
-        connection = null
-        previous?.moodle = null
-        previous?.clients?.close()
+        releaseMemory()
+        store.clear()
+    }
+
+    private fun releaseMemory() { connection.getAndUpdate { null }?.let(::close) }
+
+    private fun close(candidate: Connection) {
+        candidate.moodle = null
+        candidate.clients.close()
     }
 }

@@ -9,3 +9,5 @@ class IntranetLoginFailure(
     val httpStatus: Int? = null,
     cause: Throwable? = null,
 ) : IllegalStateException("No se pudo completar el acceso de Intranet en ${step.name}.", cause)
+
+internal class IntranetSessionExpired : IllegalStateException("La sesión de Intranet caducó.")

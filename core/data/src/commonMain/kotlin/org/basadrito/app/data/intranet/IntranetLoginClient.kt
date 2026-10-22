@@ -83,13 +83,25 @@ class IntranetLoginClient(
                     target.encodedPath.trimEnd('/') == EVALUATION_PATH) {
                     throw IntranetLoginFailure(IntranetLoginStep.EVALUATION_REQUIRED, response.status.value)
                 }
+                if (target.host == Url(campusBaseUrl).host || target.encodedPath.trimEnd('/') == "/login") {
+                    throw IntranetLoginFailure(IntranetLoginStep.PROFILE, response.status.value, IntranetSessionExpired())
+                }
             }
         }
+        if (response.status.value in setOf(401, 403)) {
+            throw IntranetLoginFailure(IntranetLoginStep.PROFILE, response.status.value, IntranetSessionExpired())
+        }
         if (response.status.value != 200) throw IntranetLoginFailure(IntranetLoginStep.PROFILE, response.status.value)
-        if (!IntranetSessionParser.isAuthenticatedProfile(response.bodyAsText())) {
+        val html = response.bodyAsText()
+        if (IntranetSessionParser.isLoginForm(html)) {
+            throw IntranetLoginFailure(IntranetLoginStep.PROFILE, response.status.value, IntranetSessionExpired())
+        }
+        if (!IntranetSessionParser.isAuthenticatedProfile(html)) {
             throw IntranetLoginFailure(IntranetLoginStep.PROFILE, response.status.value)
         }
     }
+
+    suspend fun checkAccess(): Result<Unit> = apiCall { verifyProfile() }
 
     suspend fun isAuthenticated(): Boolean = apiCall {
         verifyProfile()

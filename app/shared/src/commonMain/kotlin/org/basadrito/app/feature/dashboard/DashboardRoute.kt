@@ -29,5 +29,6 @@ fun DashboardRoute(
     val model: DashboardViewModel = viewModel(viewModelStoreOwner = owner) { createViewModel() }
     val state by model.state.collectAsStateWithLifecycle()
     LaunchedEffect(model) { model.loadCourses() }
-    DashboardScreen(state.courses, state.isLoading, state.errorMessage, { model.loadCourses() }, onSignOut)
+    DashboardScreen(state.courses, state.isLoading, state.errorMessage, { model.loadCourses() }, onSignOut,
+        sessionRemembered = access.sessionRemembered)
 }

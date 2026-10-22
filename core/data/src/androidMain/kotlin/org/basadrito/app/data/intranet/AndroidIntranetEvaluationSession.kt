@@ -44,7 +44,8 @@ class AndroidIntranetEvaluationSession(private val session: AcademicSession) {
         }
         check(session.isCurrent(connection)) { "La sesión cambió durante la comprobación." }
         val moodle = connection.moodle ?: error("La sesión ya no está disponible.")
-        PortalAccess(StudentIdentity(moodle.username, moodle.fullName), intranetAvailable = true)
+        PortalAccess(StudentIdentity(moodle.username, moodle.fullName), intranetAvailable = true,
+            sessionRemembered = session.persist(connection))
     }
 
     fun clearBrowser() {

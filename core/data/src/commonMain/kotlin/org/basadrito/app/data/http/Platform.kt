@@ -7,6 +7,7 @@ import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.cookies.AcceptAllCookiesStorage
+import io.ktor.client.plugins.cookies.CookiesStorage
 import io.ktor.client.plugins.cookies.HttpCookies
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
@@ -15,12 +16,12 @@ import kotlinx.serialization.json.Json
 val AppJson = Json { ignoreUnknownKeys = true; explicitNulls = false; encodeDefaults = true }
 expect val platformHttpEngine: HttpClientEngineFactory<*>
 
-private fun HttpClientConfig<*>.configureTransport() {
+private fun HttpClientConfig<*>.configureTransport(cookieStorage: CookiesStorage) {
     install(ContentNegotiation) {
         json(AppJson)
     }
     install(HttpCookies) {
-        storage = AcceptAllCookiesStorage()
+        storage = cookieStorage
     }
     install(HttpTimeout) {
         requestTimeoutMillis = 30_000;
@@ -31,10 +32,10 @@ private fun HttpClientConfig<*>.configureTransport() {
     expectSuccess = true
 }
 
-fun createHttpClient(): HttpClient = HttpClient(platformHttpEngine) {
-    configureTransport()
+fun createHttpClient(cookieStorage: CookiesStorage = AcceptAllCookiesStorage()): HttpClient = HttpClient(platformHttpEngine) {
+    configureTransport(cookieStorage)
 }
 
-fun createHttpClient(engine: HttpClientEngine): HttpClient = HttpClient(engine) {
-    configureTransport()
+fun createHttpClient(engine: HttpClientEngine, cookieStorage: CookiesStorage = AcceptAllCookiesStorage()): HttpClient = HttpClient(engine) {
+    configureTransport(cookieStorage)
 }

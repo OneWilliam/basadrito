@@ -11,7 +11,7 @@
 | Tokens/cookies recuperables | Almacenamiento protegido específico de plataforma | Mantener acceso entre aperturas sin mezclar secretos con datos académicos. |
 | Datos propios compartidos entre dispositivos | DB del BFF cuando el requisito lo exija | Persistir preferencias o recordatorios del servicio. |
 
-La custodia `AcademicSession` actual solo vive en memoria. Una sesión externa no puede garantizar duración indefinida: Moodle o Campus pueden invalidarla. La experiencia buscada es permanecer conectado mientras el acceso sea recuperable, y pedir autenticación cuando ya no lo sea.
+`AcademicSession` custodia el acceso durante el proceso. En Android, `AndroidSessionStore` conserva el token y la identidad Moodle junto con las cookies de la cuenta en un archivo cifrado. Al reiniciar, el repositorio comprueba el token con Moodle y el perfil de Intranet antes de publicar acceso. Una sesión externa no puede garantizar duración indefinida: Moodle o Campus pueden invalidarla.
 
 ## Elección de DB local
 
@@ -48,7 +48,20 @@ Esta es nuestra política propuesta, apoyada por la [guía de aplicaciones offli
 
 ## Sesión protegida
 
-En Android, la propuesta es cifrar el material recuperable con una clave protegida por [Android Keystore](https://developer.android.com/privacy-and-security/keystore). Keystore protege claves: no se usa como una tabla donde introducir cualquier cookie. Hay que definir formato, vencimiento, restauración, fallos de descifrado y borrado. En escritorio se evalúa el almacén de credenciales del sistema; en iOS, Keychain. En web se propone sesión BFF con cookie protegida; no contraseñas o tokens del proveedor en localStorage.
+Android implementa AES-256-GCM con una clave no exportable de [Android Keystore](https://developer.android.com/privacy-and-security/keystore). El archivo `academic-session.bin` se escribe atómicamente dentro de `noBackupFilesDir`, fuera del respaldo y la transferencia de datos de la app. Cada escritura genera un IV nuevo; la etiqueta GCM comprueba integridad y un identificador de formato se autentica como AAD. Keystore protege la clave; el archivo contiene el material cifrado. No se utiliza `EncryptedSharedPreferences` ni una DB para estos secretos.
+
+`SessionStore` es el contrato interno de datos; `SavedSession` y `SavedCookie` nunca llegan a presentación o dominio. Android aporta su almacén mediante la composición de `BasadritoApplication`. Las otras plataformas conservan por ahora el comportamiento en memoria mediante `NoSessionStore`: su persistencia sigue pendiente. En escritorio se evalúa el almacén de credenciales del sistema; en iOS, Keychain. En web se propone sesión BFF con cookie protegida, sin guardar tokens de los proveedores en localStorage.
+
+El contrato público `AuthRepository.restoreSession()` devuelve acceso, ausencia de sesión o un fallo seguro. La UI muestra recuperación inicial y ofrece reintentar o usar otra cuenta ante un fallo temporal. La secuencia implementada es:
+
+1. Abrir el archivo protegido y recuperar la instantánea de una sola cuenta.
+2. Reconstruir un cliente con su propio almacén de cookies. Conservar dominio, path, HTTPS, HttpOnly y la fecha absoluta de caducidad; un reinicio no renueva `Max-Age`. Las cookies sin fecha se recuperan para comprobarlas con el proveedor.
+3. Consultar identidad Moodle con el token guardado y exigir el mismo ID de usuario; comprobar `/perfil` de Intranet sin enviar contraseñas.
+4. Si hay evaluación docente pendiente, conservar el acceso provisional y mostrar su panel; no habilitar cursos todavía.
+5. Ante red fallida, HTTP 5xx o estructura desconocida, conservar el archivo y ofrecer reintento. Un token rechazado, un formulario/redirección de login o una identidad distinta exige nueva autenticación. Un archivo alterado, formato incompatible o clave perdida se descarta.
+6. Guardar también las cookies renovadas por respuestas posteriores. Las escrituras comprueban que la conexión sigue vigente y se serializan para evitar que una respuesta antigua sobrescriba cookies nuevas.
+
+Si el almacén no puede guardar el acceso, el login sigue disponible y la pantalla de cursos informa que se deberá autenticar de nuevo al reabrir. Logout invalida la conexión, elimina el archivo y su clave, e impide que respuestas o escrituras tardías vuelvan a guardar esa sesión.
 
 No guardar contraseñas por defecto. Primero comprobar si cookies/tokens bastan para restaurar acceso y cómo expiran. Si el requisito acaba necesitando otra política, se documenta y aprueba explícitamente antes de implementarla. Un `.env` del probe es configuración de desarrollo y no resuelve la persistencia de producción.
 
@@ -64,4 +77,6 @@ El primer BFF de autenticación/consulta no necesita instalar PostgreSQL si no c
 
 Las pruebas de persistencia usan una DB aislada y verifican aislamiento por cuenta, actualización transaccional, rollback, observación y migraciones entre versiones de nuestro esquema. Versionamos esquemas y migraciones sin borrar datos del usuario como atajo.
 
-Secuencia de incorporación: consulta remota mediante repositorio → caché SQLite → pruebas de consulta/actualización → recuperación segura de sesión → sincronización automática si el requisito la necesita. La UI puede comenzar antes de la DB.
+La consulta remota y la recuperación protegida de sesión Android ya tienen implementación. La caché SQLite, restauración protegida de otras plataformas y renovación automática de sesiones caducadas siguen pendientes. La recuperación actual no guarda contraseñas ni vuelve a ejecutar el login automáticamente: cuando token/cookies ya no permiten acceder, solicita autenticación.
+
+Las pruebas JVM de recuperación usan proveedores y almacenes simulados; las pruebas instrumentadas de `AndroidSessionStore` usan nombres de archivo y claves aislados y tokens ficticios. Comprueban apertura desde otra instancia, borrado, integridad del cifrado y pérdida de clave.

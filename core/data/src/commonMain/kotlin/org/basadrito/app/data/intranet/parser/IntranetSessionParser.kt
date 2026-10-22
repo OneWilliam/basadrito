@@ -3,11 +3,15 @@ package org.basadrito.app.data.intranet.parser
 object IntranetSessionParser {
     fun isAuthenticatedProfile(html: String): Boolean {
         val markup = visibleMarkup(html)
+        return !isLoginForm(markup) && profileName(markup).isNotBlank()
+    }
+
+    fun isLoginForm(html: String): Boolean {
+        val markup = visibleMarkup(html)
         val inputs = Regex("""<input\b[^>]*>""", RegexOption.IGNORE_CASE).findAll(markup)
             .mapNotNull { attribute(it.value, "name") }.toSet()
-        if (inputs.any { it.equals("UserName", ignoreCase = true) } &&
-            inputs.any { it.equals("Password", ignoreCase = true) }) return false
-        return profileName(markup).isNotBlank()
+        return inputs.any { it.equals("UserName", ignoreCase = true) } &&
+            inputs.any { it.equals("Password", ignoreCase = true) }
     }
 }
 

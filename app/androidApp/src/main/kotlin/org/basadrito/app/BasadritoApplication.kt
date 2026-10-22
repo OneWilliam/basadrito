@@ -7,11 +7,12 @@ import org.basadrito.app.data.repository.AuthenticationDiagnostics
 import org.basadrito.app.data.repository.AuthRepositoryImpl
 import org.basadrito.app.data.repository.CoursesRepositoryImpl
 import org.basadrito.app.data.session.AcademicSession
+import org.basadrito.app.data.session.AndroidSessionStore
 import org.basadrito.app.di.AppContainer
 import org.basadrito.app.data.intranet.AndroidIntranetEvaluationSession
 
 class BasadritoApplication : Application() {
-    private val session by lazy { AcademicSession() }
+    private val session by lazy { AcademicSession(AndroidSessionStore(this)) }
     val evaluationSession by lazy { AndroidIntranetEvaluationSession(session) }
     val container by lazy {
         AppContainer(

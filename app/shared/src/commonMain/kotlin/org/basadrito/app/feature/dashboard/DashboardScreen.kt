@@ -21,6 +21,7 @@ fun DashboardScreen(
     errorMessage: String?,
     onRetry: () -> Unit,
     onSignOut: () -> Unit,
+    sessionRemembered: Boolean = true,
 ) {
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).safeContentPadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = BasadritoTokens.pagePadding),
@@ -28,6 +29,8 @@ fun DashboardScreen(
             Text("Mis cursos", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             TextButton(onClick = onSignOut) { Text("Cerrar sesión") }
         }
+        if (!sessionRemembered) Text("No se pudo recordar el acceso. Al volver a abrir la app tendrás que iniciar sesión.",
+            Modifier.padding(horizontal = BasadritoTokens.pagePadding), style = MaterialTheme.typography.bodySmall)
         if (isLoading) Row(Modifier.padding(BasadritoTokens.pagePadding), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)

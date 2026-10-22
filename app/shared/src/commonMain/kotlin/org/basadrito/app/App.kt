@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import org.basadrito.app.designsystem.BasadritoTheme
 import org.basadrito.app.di.AppContainer
 import org.basadrito.app.feature.auth.AuthViewModel
+import org.basadrito.app.feature.auth.SessionRecoveryScreen
 import org.basadrito.app.navigation.AppNavigation
 import org.basadrito.app.feature.onboarding.OnboardingScreen
 import org.basadrito.app.feature.onboarding.OnboardingViewModel
@@ -28,6 +29,10 @@ fun App(
     BasadritoTheme {
         if (onboardingStep != OnboardingViewModel.COMPLETE) {
             OnboardingScreen(onboardingStep, onboarding::next, onboarding::back)
+            return@BasadritoTheme
+        }
+        if (state.isRestoring) {
+            SessionRecoveryScreen(state, { auth.restoreSession() }, auth::signOut)
             return@BasadritoTheme
         }
         if (state.access?.intranetRequirement != null) {

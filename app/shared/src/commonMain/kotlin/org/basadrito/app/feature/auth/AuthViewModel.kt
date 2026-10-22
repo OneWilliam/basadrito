@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.basadrito.app.domain.auth.AuthRepository
 import org.basadrito.app.domain.auth.PortalAccess
+import org.basadrito.app.domain.auth.SessionRecoveryException
 import kotlin.coroutines.cancellation.CancellationException
 
 class AuthViewModel(
@@ -22,19 +23,45 @@ class AuthViewModel(
     private var operation: Job? = null
     private var generation = 0L
 
+    init { restoreSession() }
+
+    fun restoreSession(): Job? {
+        if (state.value.isLoading || state.value.access != null) return null
+        val request = ++generation
+        mutableState.value = AuthUiState(isRestoring = true, isLoading = true, loadingMessage = "Recuperando acceso…")
+        return operationScope.launch {
+            try {
+                auth.restoreSession().fold(
+                    onSuccess = { access -> updateFor(request) { it.copy(access = access, isRestoring = false) } },
+                    onFailure = { error -> updateFor(request) {
+                        val recovery = error as? SessionRecoveryException
+                        it.copy(isRestoring = recovery?.canRetry ?: true,
+                            errorMessage = recovery?.message ?: "No se pudo recuperar el acceso guardado. Intenta nuevamente.")
+                    } },
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                updateFor(request) { it.copy(errorMessage = "No se pudo recuperar el acceso guardado. Intenta nuevamente.") }
+            } finally {
+                updateFor(request) { it.copy(isLoading = false, loadingMessage = "") }
+            }
+        }.also { operation = it }
+    }
+
     fun setUsername(value: String) = edit { copy(username = value) }
     fun setMoodlePassword(value: String) = edit { copy(moodlePassword = value) }
     fun setIntranetPassword(value: String) = edit { copy(intranetPassword = value) }
 
     private fun edit(change: AuthUiState.() -> AuthUiState) {
-        if (!state.value.isLoading && state.value.access == null) {
+        if (!state.value.isLoading && !state.value.isRestoring && state.value.access == null) {
             mutableState.update { it.change().copy(errorMessage = null) }
         }
     }
 
     fun signIn(): Job? {
         val input = state.value
-        if (input.isLoading || input.access != null) return null
+        if (input.isLoading || input.isRestoring || input.access != null) return null
         if (input.username.isBlank() || input.moodlePassword.isBlank()) {
             mutableState.update { it.copy(errorMessage = "Ingresa tu código y contraseña del aula virtual.") }
             return null
@@ -68,8 +95,12 @@ class AuthViewModel(
     fun signOut() {
         generation++
         operation?.cancel()
-        auth.signOut()
-        mutableState.value = AuthUiState()
+        try {
+            auth.signOut()
+            mutableState.value = AuthUiState()
+        } catch (_: Exception) {
+            mutableState.value = AuthUiState(errorMessage = "No se pudo eliminar el acceso guardado. Intenta cerrar sesión nuevamente.", isRestoring = true)
+        }
     }
 
     fun acceptConfirmedIntranetAccess(access: PortalAccess) {

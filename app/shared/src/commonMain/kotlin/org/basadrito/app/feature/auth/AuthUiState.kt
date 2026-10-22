@@ -10,4 +10,5 @@ data class AuthUiState(
     val loadingMessage: String = "",
     val errorMessage: String? = null,
     val access: PortalAccess? = null,
+    val isRestoring: Boolean = false,
 )

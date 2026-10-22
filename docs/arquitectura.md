@@ -59,7 +59,7 @@ Las URLs son configuración de los adaptadores/entradas; `App` no recibe una URL
 
 ![Mapa de persistencia previsto](diagramas/persistencia.svg)
 
-La caché, la recuperación de sesión y las preferencias tienen adaptadores separados. La DB del servidor se incorpora cuando los datos propios requieran persistencia.
+La caché, la recuperación de sesión y las preferencias tienen adaptadores separados. Android ya ensambla `AndroidSessionStore` para recuperar el token/cookies con cifrado y validación de proveedores; las otras plataformas siguen pendientes. La UI conoce `AuthRepository.restoreSession()`, pero no el archivo ni las cookies. La DB del servidor se incorpora cuando los datos propios requieran persistencia.
 
 La DB local se incorpora al primer requisito de consulta sin conexión. Proponemos SQLite con Room para Android y, tras verificar compatibilidad, destinos nativos/JVM; el código Room se coloca en conjuntos de fuentes compatibles y no se fuerza dentro de `commonMain` compartido con JS/Wasm. Los contratos de dominio conservan la misma forma. Web tendrá su propio adaptador de almacenamiento cuando necesite caché persistente.
 

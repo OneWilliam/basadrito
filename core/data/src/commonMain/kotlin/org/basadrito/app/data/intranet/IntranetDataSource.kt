@@ -26,6 +26,7 @@ class IntranetDataSource(
         auth.login(username, password)
 
     suspend fun isAuthenticated(): Boolean = auth.isAuthenticated()
+    suspend fun checkAccess(): Result<Unit> = auth.checkAccess()
 
     suspend fun getProfile(): Result<StudentProfile> = apiCall {
         IntranetHtmlParser.parseProfile(api.getText(PATH_PROFILE).getOrThrow())
