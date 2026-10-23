@@ -51,12 +51,13 @@ private fun MainBottomBar(selected: AppDestination, onSelect: (MainSection) -> U
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
                     ) {
-                        if (section == MainSection.TOOLS) ToolsGridIcon() else {
-                            Icon(painterResource(section.icon()), null, Modifier.size(15.dp), tint = MaterialTheme.colorScheme.onSurface)
+                        if (section == MainSection.TOOLS) ToolsGridIcon(isSelected) else {
+                            val selectedColor = if (isSelected) BasadritoColors.coral else MaterialTheme.colorScheme.onSurface
+                            Icon(painterResource(section.icon()), null, Modifier.size(15.dp), tint = selectedColor)
                             Spacer(Modifier.height(3.dp))
                             Text(section.label, fontSize = 11.sp, lineHeight = 14.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+                                color = selectedColor, maxLines = 1)
                         }
                     }
                 }
@@ -67,8 +68,8 @@ private fun MainBottomBar(selected: AppDestination, onSelect: (MainSection) -> U
 
 /** Native Compose shapes: 44 px circle and four 8 px squares from Figma. */
 @Composable
-private fun ToolsGridIcon() {
-    Column(Modifier.size(44.dp).background(BasadritoColors.navigationButton, CircleShape).padding(12.dp),
+private fun ToolsGridIcon(selected: Boolean) {
+    Column(Modifier.size(44.dp).background(if (selected) BasadritoColors.coral else BasadritoColors.navigationButton, CircleShape).padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)) {
         repeat(2) {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {

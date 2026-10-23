@@ -15,7 +15,8 @@ fun DashboardRoute(
 ) {
     val model: DashboardViewModel = viewModel { createViewModel() }
     val state by model.state.collectAsStateWithLifecycle()
+    val academic by model.academicState.collectAsStateWithLifecycle()
     DashboardScreen(state.courses, state.isLoading, state.errorMessage, { model.loadCourses() },
         sessionRemembered = access.sessionRemembered, onBack = onBack, snapshotState = state,
-        localOnly = access.mode == org.basadrito.app.domain.auth.AccessMode.LOCAL_ONLY)
+        localOnly = access.mode == org.basadrito.app.domain.auth.AccessMode.LOCAL_ONLY, academic = academic)
 }
