@@ -39,7 +39,7 @@ Cada módulo Gradle tiene sus fuentes: `core/domain/src` y `core/data/src` conti
 
 `expect` declara una capacidad específica de plataforma; `actual` la resuelve para cada destino compilado. Tener la dependencia OkHttp declarada no reemplaza un `actual platformHttpEngine` ausente.
 
-La persistencia nativa necesita una jerarquía de fuentes compatible o un módulo dedicado antes de incorporar Room. No se mete una biblioteca sin destino navegador en el conjunto que compila a JS/Wasm. Separar otro módulo se justifica por aislamiento de dependencias o compilación, no por cada carpeta funcional.
+La persistencia Room se implementa en `core/database`, con destinos Android, JVM e iOS. `core/data` define el puerto de caché sin depender de Room. Las entradas nativas ensamblan ambos módulos; el almacenamiento no se introduce en el conjunto compartido que compila a JS/Wasm. Separar otro módulo se justifica por aislamiento de dependencias o compilación, no por cada carpeta funcional.
 
 ## Dónde poner una pieza nueva
 

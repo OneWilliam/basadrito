@@ -1,82 +1,92 @@
 # Datos, DB y persistencia de sesión
 
-## Responsabilidades de almacenamiento
+## Almacenamiento implementado
 
-![Almacenamiento previsto por responsabilidad](../diagramas/persistencia.svg)
-
-| Necesidad | Almacenamiento objetivo | Razón |
+| Contenido | Adaptador | Alcance |
 |---|---|---|
-| Cursos, notas, asistencia y calendario consultados | DB local SQLite | Consultar sin conexión y observar actualizaciones. |
-| Tema, filtros y preferencias pequeñas | Almacenamiento de preferencias de plataforma | Evitar tablas para valores simples. |
-| Tokens/cookies recuperables | Almacenamiento protegido específico de plataforma | Mantener acceso entre aperturas sin mezclar secretos con datos académicos. |
-| Datos propios compartidos entre dispositivos | DB del BFF cuando el requisito lo exija | Persistir preferencias o recordatorios del servicio. |
+| Cursos de Moodle y fecha de actualización | Room 2.8.5 / SQLite 2.7.1, módulo `core/database` | Android y JVM; entrada iOS preparada. |
+| Apariencia claro/oscuro/sistema | Preferencias de plataforma | Independiente de las cuentas y de Room. |
+| Token, identidad y cookies | `AndroidSessionStore` | Android: AES-256-GCM y Android Keystore. |
+| Sesiones web y datos propios del servidor | Pendiente | BFF y almacenamiento web pospuestos. |
 
-`AcademicSession` custodia el acceso durante el proceso. En Android, `AndroidSessionStore` conserva el token y la identidad Moodle junto con las cookies de la cuenta en un archivo cifrado. Al reiniciar, el repositorio comprueba el token con Moodle y el perfil de Intranet antes de publicar acceso. Una sesión externa no puede garantizar duración indefinida: Moodle o Campus pueden invalidarla.
+Room no almacena contraseñas, tokens ni cookies. Su archivo Android reside en el directorio privado `noBackupFilesDir`, excluido del respaldo y transferencia. La DB académica no está cifrada por Room: su aislamiento frente a otras aplicaciones depende del almacenamiento privado del sistema. El cifrado de la sesión es una responsabilidad distinta.
 
-## Elección de DB local
+La [guía de Room KMP](https://developer.android.com/kotlin/multiplatform/room) orienta la configuración. `core/database` declara Android, JVM e iOS; no se introduce Room en los fuentes compartidos que compilan a JS/Wasm. El esquema JSON se versiona y no se utiliza una migración destructiva. Las migraciones se añadirán al evolucionar el esquema inicial.
 
-**Propuesta:** SQLite con Room para Android primero. Los datos son relacionales por estudiante, período y curso; las transacciones y consultas observables ayudan a construir la consulta sin conexión. Room es un adaptador de persistencia en `data`; sus entidades y anotaciones no llegan a `domain`.
+## Archivos y recorrido
 
-La [guía oficial de Room KMP](https://developer.android.com/kotlin/multiplatform/room) describe su configuración multiplataforma. Se verificará una versión estable compatible con nuestro Kotlin/AGP/KSP antes de añadirla. No copiamos una versión alpha solo porque figure en un ejemplo. Web no se considera cubierta por esa elección: se separan las fuentes nativas/JVM o un módulo de almacenamiento, y web implementa el contrato con su almacenamiento apropiado.
+| Archivo | Responsabilidad |
+|---|---|
+| [CoursesRepository](../../core/domain/src/commonMain/kotlin/org/basadrito/app/domain/courses/CoursesRepository.kt) | Modelo propio de cursos, origen y actualización, sin SQL. |
+| [CourseCache](../../core/data/src/commonMain/kotlin/org/basadrito/app/data/cache/CourseCache.kt) | Puerto de almacenamiento e identidad del propietario. |
+| [CoursesRepositoryImpl](../../core/data/src/commonMain/kotlin/org/basadrito/app/data/repository/CoursesRepositoryImpl.kt) | Obtiene el propietario de la sesión activa, consulta caché y Moodle, normaliza y guarda. |
+| [AcademicDatabase](../../core/database/src/commonMain/kotlin/org/basadrito/app/database/AcademicDatabase.kt) | Entidades, consultas por propietario y transacciones. |
+| [RoomCourseCache](../../core/database/src/commonMain/kotlin/org/basadrito/app/database/RoomCourseCache.kt) | Implementa el puerto y serializa operaciones. |
+| [DashboardViewModel](../../app/shared/src/commonMain/kotlin/org/basadrito/app/feature/dashboard/DashboardViewModel.kt) | Publica primero la instantánea disponible y luego el resultado de actualizar. |
+| [AuthRepositoryImpl](../../core/data/src/commonMain/kotlin/org/basadrito/app/data/repository/AuthRepositoryImpl.kt) | Recupera acceso protegido, valida proveedores y decide si permite lectura local. |
 
-[SQLDelight](https://sqldelight.github.io/sqldelight/2.1.0/) es la alternativa a evaluar si queremos escribir SQL explícito y compartir consultas con otros drivers. Elegimos entre ambas al implementar caché, con un experimento Android y una compilación de los destinos declarados; no instalamos dos ORM para el mismo propósito. La elección y sus versiones se concretarán con ese experimento.
+La UI llama al ViewModel; este consume el contrato de dominio. El repositorio obtiene el ID de Moodle desde `AcademicSession`, lee la instantánea de esa cuenta y consulta el proveedor si está habilitado. Room reemplaza solo esa instantánea en una transacción. El resultado llega a `UiState` con origen, fecha y fallo de actualización; Compose lo representa sin conocer SQL ni tokens.
 
-## Primer esquema útil
+## Esquema actual
 
-| Tabla propuesta | Clave / contenido | Regla |
+| Tabla | Clave primaria | Contenido |
 |---|---|---|
-| `account` | ID interno, identificadores externos comprobados | No deducir que el nombre identifica de forma única. |
-| `academic_period` | Proveedor + ID de período | Los períodos de proveedores distintos necesitan mapeo explícito. |
-| `course_snapshot` | Cuenta + proveedor + período + ID externo; título y fecha de actualización | Guardar un modelo normalizado; no el HTML entero por defecto. |
-| `sync_metadata` | Cuenta + recurso; última actualización y estado | Permitir mostrar antigüedad y reintentar. |
-| Notas/asistencia | Cuenta + curso + identificador del registro | Añadir cuando el requisito y la evidencia del proveedor estén claros. |
+| `course_snapshots` | Proveedor + ID externo de usuario | Fecha de la última actualización correcta. |
+| `courses` | Proveedor + ID externo de usuario + ID externo de curso | Nombre, nombre corto y orden. |
 
-Estos nombres son diseño, no un esquema ya creado. Las claves previenen cruces entre cuentas y períodos. No se fuerza la unión de cursos Moodle e Intranet por coincidencia de nombre: se necesita evidencia para un mapeo confiable.
+Un resultado correcto sin cursos también tiene una instantánea. Una red fallida sin instantánea se presenta como error, no como una sincronización vacía. Todavía no se guardan notas, asistencia, períodos, tareas ni archivos adjuntos. Los cursos se conservan como la lista devuelta por Moodle, sin inventar una clasificación por período.
 
-## Consulta y actualización
+## Retención y cuentas
 
-![Recorrido de una consulta con caché](../diagramas/recorrido-consulta.svg)
+Se admite una sesión activa y cachés de varias cuentas. El proveedor y el ID externo comprobado identifican cada propietario; el nombre visible o el código introducido en el formulario no conceden acceso a una caché.
 
-1. La UI observa el repositorio; este lee una instantánea local filtrada por cuenta y período.
-2. Si hay datos, los emite con fecha de actualización. Si no hay, representa ausencia/carga; no inventa una lista vacía como resultado de red fallida.
-3. Al solicitar actualización, consulta al proveedor con la sesión vigente.
-4. Valida y mapea la respuesta. Una transacción reemplaza únicamente la instantánea correspondiente y actualiza metadatos.
-5. La observación de DB emite el nuevo resultado. Si falla la red, conserva la instantánea anterior y comunica el error y su antigüedad.
-6. Una respuesta de una cuenta anterior no puede escribir en la nueva: la operación conserva el identificador/generación de sesión y comprueba vigencia antes de persistir.
+| Acción | Acceso protegido | Caché académica |
+|---|---|---|
+| Cerrar la app | Se conserva en Android. | Se conserva por cuenta. |
+| Cerrar sesión | Se elimina el archivo cifrado y su clave; se invalida la conexión. | Se conserva, bloqueada para la cuenta deslogueada. |
+| Ingresar con otra cuenta | Se crea una sesión independiente. | Solo se consulta la del nuevo ID. |
+| Volver a una cuenta deslogueada | Exige autenticarse nuevamente. | Se reutiliza la instantánea de su ID. |
+| Fallo al actualizar | No ejecuta un borrado global. | Conserva el último resultado correcto. |
 
-Esta es nuestra política propuesta, apoyada por la [guía de aplicaciones offline-first](https://developer.android.com/topic/architecture/data-layer/offline-first). Un login nuevo sigue exigiendo ambos proveedores; consultar caché sin conexión no equivale a verificar autenticación remota. La sincronización automática se añade después de que la actualización manual funcione; Android podrá usar WorkManager si el requisito pide trabajo persistente en segundo plano.
+La UI no recibe una operación para consultar un ID arbitrario. Las respuestas pendientes comprueban que su conexión sigue vigente antes de publicar o escribir; si cambia durante la transacción SQL, se revierte la sustitución. Al salir se retira la navegación privada y se liberan sus ViewModels.
 
-## Sesión protegida
+La caché no caduca por tiempo en este primer alcance; su antigüedad se muestra y se puede solicitar actualización. El borrado selectivo existe en el adaptador, pero su control en Ajustes y un selector de cuentas siguen pendientes. No se mantienen múltiples sesiones protegidas simultáneas.
 
-Android implementa AES-256-GCM con una clave no exportable de [Android Keystore](https://developer.android.com/privacy-and-security/keystore). El archivo `academic-session.bin` se escribe atómicamente dentro de `noBackupFilesDir`, fuera del respaldo y la transferencia de datos de la app. Cada escritura genera un IV nuevo; la etiqueta GCM comprueba integridad y un identificador de formato se autentica como AAD. Keystore protege la clave; el archivo contiene el material cifrado. No se utiliza `EncryptedSharedPreferences` ni una DB para estos secretos.
+## Recuperación y lectura local
 
-`SessionStore` es el contrato interno de datos; `SavedSession` y `SavedCookie` nunca llegan a presentación o dominio. Android aporta su almacén mediante la composición de `BasadritoApplication`. Las otras plataformas conservan por ahora el comportamiento en memoria mediante `NoSessionStore`: su persistencia sigue pendiente. En escritorio se evalúa el almacén de credenciales del sistema; en iOS, Keychain. En web se propone sesión BFF con cookie protegida, sin guardar tokens de los proveedores en localStorage.
+Android guarda token y cookies con [Android Keystore](https://developer.android.com/privacy-and-security/keystore), AES-256-GCM, IV nuevo por escritura y escritura atómica en `noBackupFilesDir`. Los detalles del formato y los secretos permanecen en `data`. No se almacenan contraseñas ni se utiliza Room para recuperar sesiones.
 
-El contrato público `AuthRepository.restoreSession()` devuelve acceso, ausencia de sesión o un fallo seguro. La UI muestra recuperación inicial y ofrece reintentar o usar otra cuenta ante un fallo temporal. La secuencia implementada es:
+1. `restoreSession()` abre la instantánea protegida y reconstruye el cliente con sus cookies.
+2. Comprueba identidad Moodle y acceso a Intranet. Un ID diferente, token rechazado o redirección de login exige autenticarse otra vez.
+3. Una evaluación pendiente mantiene su barrera de acceso. Solo un acceso completo permite guardar la autorización para lectura local posterior.
+4. Si falla la conexión o hay HTTP 5xx, puede abrirse `LOCAL_ONLY` cuando existe acceso protegido previamente validado y una instantánea del mismo propietario. No se afirma que los proveedores hayan validado la sesión durante esa apertura.
+5. Una respuesta desconocida, un fallo al abrir el almacén o datos de otra cuenta no habilitan lectura local. Sin caché propia se ofrece reintentar.
+6. En `LOCAL_ONLY`, las consultas de cursos no hacen solicitudes HTTP. Ajustes permite comprobar la conexión para recuperar acceso verificado.
 
-1. Abrir el archivo protegido y recuperar la instantánea de una sola cuenta.
-2. Reconstruir un cliente con su propio almacén de cookies. Conservar dominio, path, HTTPS, HttpOnly y la fecha absoluta de caducidad; un reinicio no renueva `Max-Age`. Las cookies sin fecha se recuperan para comprobarlas con el proveedor.
-3. Consultar identidad Moodle con el token guardado y exigir el mismo ID de usuario; comprobar `/perfil` de Intranet sin enviar contraseñas.
-4. Si hay evaluación docente pendiente, conservar el acceso provisional y mostrar su panel; no habilitar cursos todavía.
-5. Ante red fallida, HTTP 5xx o estructura desconocida, conservar el archivo y ofrecer reintento. Un token rechazado, un formulario/redirección de login o una identidad distinta exige nueva autenticación. Un archivo alterado, formato incompatible o clave perdida se descarta.
-6. Guardar también las cookies renovadas por respuestas posteriores. Las escrituras comprueban que la conexión sigue vigente y se serializan para evitar que una respuesta antigua sobrescriba cookies nuevas.
+Una caché por sí sola nunca recupera la cuenta después de logout. Un fallo temporal conserva el archivo protegido para reintentar; un acceso rechazado elimina ese archivo y conserva los datos académicos bloqueados. Las cookies mantienen sus restricciones y caducidad absoluta: reiniciar no renueva `Max-Age`.
 
-Si el almacén no puede guardar el acceso, el login sigue disponible y la pantalla de cursos informa que se deberá autenticar de nuevo al reabrir. Logout invalida la conexión, elimina el archivo y su clave, e impide que respuestas o escrituras tardías vuelvan a guardar esa sesión.
+## Manejo de fallos de almacenamiento
 
-No guardar contraseñas por defecto. Primero comprobar si cookies/tokens bastan para restaurar acceso y cómo expiran. Si el requisito acaba necesitando otra política, se documenta y aprueba explícitamente antes de implementarla. Un `.env` del probe es configuración de desarrollo y no resuelve la persistencia de producción.
+Una lectura sin filas devuelve ausencia; una consulta fallida devuelve un error de almacenamiento. El adaptador Room traduce `SQLiteException` a `CourseCacheStorageException`; la cancelación y las excepciones inesperadas se propagan.
 
-Al cerrar sesión se borra el material protegido y, por defecto, los datos académicos de esa cuenta. Si el producto quiere retenerlos para consulta posterior, debe definir esa experiencia y su protección antes de cambiar la política. Una caída temporal de un proveedor no ejecuta un borrado global de sesión.
+| Fallo | Comportamiento |
+|---|---|
+| Leer cursos guardados | Se informa del fallo. Si hay conexión, se intenta consultar Moodle. |
+| Guardar cursos descargados | Se conservan en pantalla con un aviso de que no quedaron disponibles sin conexión. |
+| Leer caché durante recuperación local | Se devuelve un fallo de almacenamiento y se conserva el acceso protegido para reintentar. |
+| Guardar acceso protegido | El resultado marca que la sesión no quedó recordada y registra el diagnóstico. |
+| Cancelación | Se propaga y no se convierte en ausencia, éxito ni aviso de almacenamiento. |
 
-## DB del servidor y herramientas
+Los diagnósticos de almacenamiento registran únicamente operación y tipo de excepción, sin mensajes originales, rutas, identificadores ni secretos. El diagnóstico de autenticación conserva proveedor, etapa, tipo y estado HTTP. Los fallos de los propios callbacks de diagnóstico no se silencian; la recuperación libera el cliente provisional mediante `finally`, incluso si falla ese callback.
 
-PostgreSQL es la propuesta cuando el BFF necesite datos propios persistentes. No recreamos la BD universitaria ni guardamos todos los cursos de todos los usuarios sin requisito. Se definirán propietario, retención, migraciones, restricciones e índices según consultas reales. Sesiones duraderas del BFF requieren también una política de expiración y protección de sus secretos.
-
-El primer BFF de autenticación/consulta no necesita instalar PostgreSQL si no conserva datos propios duraderos. Docker Compose podrá levantar la DB para desarrollo; DBeaver o herramientas SQL sirven para inspección. Redis queda para una necesidad comprobada de caché distribuida, coordinación o sesiones: no es obligatorio por tener un servidor.
+Escritorio tiene DB y preferencias persistentes, pero su sesión sigue en memoria: al reabrir exige login. iOS tiene composición de DB y preferencias preparada; Keychain y validación de esa plataforma quedan pendientes. La caché iOS usa el directorio de cachés del sistema y puede ser depurada por este.
 
 ## Pruebas y evolución
 
-Las pruebas de persistencia usan una DB aislada y verifican aislamiento por cuenta, actualización transaccional, rollback, observación y migraciones entre versiones de nuestro esquema. Versionamos esquemas y migraciones sin borrar datos del usuario como atajo.
+| Pruebas | Verifican |
+|---|---|
+| Room JVM | Separación de cuentas/proveedores, reapertura, borrado selectivo, instantánea vacía y rollback al cambiar de cuenta. |
+| Repositorios con proveedores controlados | Lectura de la cuenta activa, retención ante fallos, rechazo de respuestas tardías y recuperación local solo con acceso protegido propio. |
+| Android 16 | Almacén cifrado, reapertura de Room, separación de cuentas y preferencias de apariencia. |
 
-La consulta remota y la recuperación protegida de sesión Android ya tienen implementación. La caché SQLite, restauración protegida de otras plataformas y renovación automática de sesiones caducadas siguen pendientes. La recuperación actual no guarda contraseñas ni vuelve a ejecutar el login automáticamente: cuando token/cookies ya no permiten acceder, solicita autenticación.
-
-Las pruebas JVM de recuperación usan proveedores y almacenes simulados; las pruebas instrumentadas de `AndroidSessionStore` usan nombres de archivo y claves aislados y tokens ficticios. Comprueban apertura desde otra instancia, borrado, integridad del cifrado y pérdida de clave.
+Quedan fuera de este alcance la sincronización en segundo plano, la observación continua de tablas, archivos descargados, períodos y migraciones entre versiones de esquema. Los nuevos conjuntos académicos tendrán sus propios contratos y claves. El BFF podrá incorporar PostgreSQL cuando necesite datos propios persistentes; no se replica la DB universitaria.

@@ -16,6 +16,7 @@ Las flechas significan «conoce y depende de». Las entradas de plataforma const
 |---|---|---|
 | `core/domain` | Modelos propios, contratos, estados y reglas de negocio | No depende de Compose, Ktor, SQL ni formatos universitarios. |
 | `core/data` | Adaptadores Moodle/Intranet/BFF, repositorios, transporte, sesión y persistencia | Implementa contratos; convierte DTOs, HTML y entidades a modelos propios. |
+| `core/database` | Room/SQLite, entidades y transacciones de caché por propietario | Solo destinos nativos/JVM; sin secretos ni dependencia desde presentación común. |
 | `app/shared` | Pantallas, ViewModels, UiState, navegación y sistema de diseño | Consume contratos de dominio. |
 | Entradas de `app` | Arranque, permisos, ciclo de vida y composición específica de plataforma | Eligen motor HTTP, almacenamiento y repositorios. |
 | `server` | API propia de Basadrito, sesiones web y composición del BFF | No contiene lógica de presentación ni expone indiscriminadamente los portales. |
@@ -33,7 +34,7 @@ La altura expresa su organización conceptual, no el orden de ejecución ni depe
 
 ![Consulta, caché y estado de pantalla](diagramas/recorrido-consulta.svg)
 
-Esta vista representa el flujo previsto de una consulta con caché. Las llamadas salen hacia el proveedor; los datos regresan normalizados y actualizan el estado de pantalla. No son flechas de dependencias de compilación.
+Esta vista describe el recorrido de una consulta; la caché de cursos ya tiene implementación. Las llamadas salen hacia el proveedor; los datos regresan normalizados y actualizan el estado de pantalla. No son flechas de dependencias de compilación.
 
 1. La entrada Android crea una sesión por cuenta, clientes HTTP y repositorios. Construye el contenedor que entrega contratos al ViewModel.
 2. Una pantalla Compose representa `UiState` y envía eventos, sin llamar directamente a HTTP ni SQL.
@@ -41,7 +42,7 @@ Esta vista representa el flujo previsto de una consulta con caché. Las llamadas
 4. El repositorio aplica la política de datos. Para el acceso inicial, exige Moodle e Intranet. Para consultas posteriores, usa la sesión activa y conserva acceso parcial ante una caída temporal.
 5. El adaptador convierte el protocolo externo a modelos propios. Si hay caché, actualiza la DB dentro de una transacción.
 6. El repositorio devuelve un resultado o emite datos observables; el ViewModel publica el nuevo estado y Compose vuelve a representar la pantalla.
-7. Cerrar sesión cancela trabajo ligado a la cuenta, invalida la sesión y elimina acceso protegido y datos personales conforme a la política de persistencia.
+7. Cerrar sesión cancela trabajo ligado a la cuenta, invalida la sesión y elimina el acceso protegido y conserva la caché de la cuenta bloqueada hasta una nueva autenticación.
 
 El ViewModel se obtiene con integración de lifecycle; no se crea un cliente o una nueva sesión en cada recomposición. Se empieza con inyección por constructor y composición manual. Koin u otro contenedor solo se incorporará si reduce una complejidad comprobada.
 
@@ -61,15 +62,43 @@ Las URLs son configuración de los adaptadores/entradas; `App` no recibe una URL
 
 La caché, la recuperación de sesión y las preferencias tienen adaptadores separados. Android ya ensambla `AndroidSessionStore` para recuperar el token/cookies con cifrado y validación de proveedores; las otras plataformas siguen pendientes. La UI conoce `AuthRepository.restoreSession()`, pero no el archivo ni las cookies. La DB del servidor se incorpora cuando los datos propios requieran persistencia.
 
-La DB local se incorpora al primer requisito de consulta sin conexión. Proponemos SQLite con Room para Android y, tras verificar compatibilidad, destinos nativos/JVM; el código Room se coloca en conjuntos de fuentes compatibles y no se fuerza dentro de `commonMain` compartido con JS/Wasm. Los contratos de dominio conservan la misma forma. Web tendrá su propio adaptador de almacenamiento cuando necesite caché persistente.
+La caché de cursos utiliza Room/SQLite en `core/database`, con destinos Android, JVM e iOS. La entrada iOS está preparada y su validación queda pendiente. `core/data` define el puerto de caché, obtiene el propietario desde la sesión y coordina lecturas y actualización; no importa Room. El módulo de DB no se introduce en los fuentes compartidos con JS/Wasm. Web tendrá su propio adaptador cuando lo necesite.
 
-Los datos recuperados incluyen cuenta, proveedor, período y fecha de actualización. La UI distinguirá información actualizada, almacenada y no disponible. El almacenamiento seguro de sesión es una responsabilidad separada de la caché académica. La DB del BFF se propone relacional —PostgreSQL— cuando existan datos propios persistentes: preferencias, recordatorios o sesiones según su política. El primer BFF puede funcionar sin una DB académica central.
+Los cursos guardados incluyen proveedor, ID externo del propietario y fecha de actualización. No se almacena aún una clasificación por período. La UI distingue información actualizada, almacenada y no disponible. El almacenamiento seguro de sesión es una responsabilidad separada de la caché académica. La DB del BFF se propone relacional —PostgreSQL— cuando existan datos propios persistentes: preferencias, recordatorios o sesiones según su política. El primer BFF puede funcionar sin una DB académica central.
 
 Consulta [datos y persistencia](diseno/datos-y-persistencia.md) para esquema inicial, algoritmo de actualización, límites y pruebas.
 
 ## Navegación y diseño
 
-La navegación se centraliza en `shared/navigation`: destinos y grafo, retorno y barrera de autenticación. Cada feature contiene su pantalla, ViewModel y estado; los componentes reutilizables pertenecen a `designsystem`. Se implementa primero login → inicio → logout; luego se conectan cursos, notas, asistencia y calendario según requisitos y Figma.
+La navegación se centraliza en `app/shared/commonMain/navigation` y utiliza [Navigation 3 para Compose Multiplatform](https://kotlinlang.org/docs/multiplatform/compose-navigation-3.html), con el artefacto multiplataforma `navigation3-ui:1.1.1`. Cada feature contiene su pantalla, ViewModel y estado; los componentes reutilizables pertenecen a `designsystem`.
+
+| Archivo | Responsabilidad |
+|---|---|
+| [AppDestination](../app/shared/src/commonMain/kotlin/org/basadrito/app/navigation/AppDestination.kt) | Rutas tipadas serializables de Inicio, Cursos y Ajustes; catálogo de secciones independiente de su presentación. |
+| [AppNavigator](../app/shared/src/commonMain/kotlin/org/basadrito/app/navigation/AppNavigator.kt) | Reglas de selección, retorno entre destinos, prevención de duplicados y reinicio del historial al cerrar sesión. |
+| [AppNavigation](../app/shared/src/commonMain/kotlin/org/basadrito/app/navigation/AppNavigation.kt) | Barrera de autenticación, pila guardable por cuenta, `NavDisplay` y asociación entre rutas y pantallas. |
+| [MainNavigationScaffold](../app/shared/src/commonMain/kotlin/org/basadrito/app/navigation/MainNavigationScaffold.kt) | Barra inferior nativa e insets del sistema. No administra sesión ni crea repositorios. |
+| [DashboardRoute](../app/shared/src/commonMain/kotlin/org/basadrito/app/feature/dashboard/DashboardRoute.kt) | Obtiene el ViewModel del destino y observa los cursos. Navigation 3 conserva su estado mientras exista la entrada. |
+| [SettingsScreen](../app/shared/src/commonMain/kotlin/org/basadrito/app/feature/settings/SettingsScreen.kt) | Identidad de la cuenta, estado de acceso recordado y cierre de sesión. Incluye apariencia y reintento de conexión; los demás ajustes del diseño siguen pendientes. |
+
+Inicio es la raíz autenticada. Seleccionar Cursos o Ajustes añade su entrada; Atrás o seleccionar un destino previo vuelve a esa entrada sin duplicarla. El ViewModel de cursos carga al crearse y se conserva al visitar Ajustes; una actualización manual sigue disponible ante error. Los decoradores de Navigation 3 conservan estado guardable y ViewModels por entrada. Logout reinicia la pila y retira la composición privada, con lo que se liberan sus ViewModels. Las rutas no contienen tokens, cookies ni contraseñas.
+
+La recuperación inicial y la evaluación docente se resuelven en `App` antes de construir la navegación privada. Una pila restaurada no concede autenticación: se comprueba el acceso vigente. La composición de navegación está asociada a la cuenta para evitar reutilizar el estado de otra identidad.
+
+La barra inferior procede del nodo Figma `445:1182`: Inicio, Cursos, Herramientas, Calendario y Ajustes. Inicio, Cursos y Ajustes tienen destinos operativos. Los otros accesos están deshabilitados y se anuncian como próximos en accesibilidad; no muestran datos simulados. El botón central se dibuja con formas Compose y los iconos son vectores locales, sin URLs de assets en ejecución. Se usan los insets reales del dispositivo, no la barra de estado ni el indicador de inicio dibujados en el mockup.
+
+La navegación lateral se pospone. La separación entre catálogo de secciones, política de pila y contenedor visual permite incorporarla después sin trasladar sesión a la UI ni cambiar las rutas. Tampoco se ha implementado integración con el historial/URLs del navegador web.
+
+Android ensambla su `AppContainer` en `BasadritoApplication` con almacenamiento protegido. Escritorio lo ensambla en [DesktopAppDependencies](../app/desktopApp/src/main/kotlin/org/basadrito/app/DesktopAppDependencies.kt), compartiendo una sesión entre ambos repositorios y cerrándola al terminar la aplicación. La entrada [MainViewController](../app/shared/src/iosMain/kotlin/org/basadrito/app/MainViewController.kt) ensambla la composición iOS. Escritorio conserva cursos y apariencia, pero su sesión sigue en memoria. iOS tiene composición de DB y preferencias preparada; Keychain y validación de plataforma siguen pendientes. La dependencia de datos para esa entrada iOS se limita a `iosMain`, sin introducirla en la presentación común. La entrada web y su composición mediante BFF quedan para otra entrega.
+
+`AcademicSession.close()` libera los clientes y la conexión en memoria al terminar una entrada nativa; conserva cualquier instantánea guardada. `AuthRepository.signOut()` sigue siendo la operación que elimina el acceso protegido. Cerrar una ventana o un controlador no debe convertirse en logout.
+
+| Comprobación | Resultado | Alcance |
+|---|---|---|
+| Pruebas JVM | 52 aprobadas, 0 omitidas | Repositorios, sesión, Room, fallos de almacenamiento, estado de UI, rutas y contraste. |
+| Pruebas instrumentadas Android 16 | 10 aprobadas, 0 omitidas | Almacén cifrado, Room, apariencia, navegación, cambio de cuenta y aviso de guardado fallido. |
+| Compilación | Correcta | Escritorio, APK y fuentes compartidos JS/Wasm. |
+| iOS | Pendiente | Compilación y ejecución. |
 
 El grafo OOHDM describe nodos, contextos y navegación por perfil. El grafo de la aplicación implementa rutas y estado. Se trazan entre sí, pero no son el mismo artefacto. Un estado temporal de error no obliga a inventar una nueva pantalla en Figma.
 

@@ -23,10 +23,12 @@ El proyecto está en desarrollo. La base de autenticación Moodle/Intranet, la s
 |---|---|
 | Autenticación y comprobación de perfil | Implementadas y probadas en JVM. |
 | Herramienta de integración por consola | Disponible para acceso, perfil y consulta de cursos. |
-| UI Android y navegación funcional | En construcción; diseño y organización previstos por feature. |
+| Navegación compartida | Navigation 3, barra inferior nativa e Inicio, Cursos y Ajustes; otras secciones pendientes. |
 | Recuperación protegida de sesión | Implementada en Android con token/cookies cifrados y validación al abrir. |
-| Caché académica local | Planificada; estrategia descrita abajo. |
-| Escritorio y web/BFF | Contemplados en la arquitectura; integración posterior. |
+| Caché académica local | Cursos persistidos con Room por cuenta; lectura local y actualización. |
+| Apariencia | Claro, oscuro y sistema, con preferencia persistente. |
+| Escritorio e iOS | Entradas con composición de dependencias; sesión en memoria. Escritorio compilado; iOS pendiente de validar en macOS. |
+| Web/BFF y navegación lateral | Implementación posterior. |
 
 ## Arquitectura
 
@@ -94,12 +96,12 @@ La [guía de estructura KMP](docs/estructura-del-proyecto.md) desarrolla el árb
 
 La persistencia se incorporará por responsabilidad:
 
-- **Caché académica local:** SQLite con Room para Android. Guardará datos por cuenta, proveedor y período, con fecha de actualización. Los destinos nativos/JVM compartirán lo compatible; web tendrá su adaptador cuando necesite persistencia local.
+- **Caché académica local:** Room/SQLite conserva cursos de Moodle por proveedor e ID de cuenta, con fecha de actualización. El módulo nativo/JVM está separado de los fuentes JS/Wasm; web tendrá su adaptador cuando lo necesite.
 - **Sesión:** Android conserva tokens y cookies con AES-256-GCM y una clave de Keystore, en un archivo privado excluido de copias de seguridad. Al abrir comprueba Moodle e Intranet; permite reintentar ante falta de conexión y solicita login si el acceso dejó de ser válido. No guarda contraseñas. La persistencia de otras plataformas sigue pendiente.
 - **Preferencias:** tema y filtros pequeños usarán un almacén de preferencias.
 - **Datos propios del BFF:** SQLite se preve cuando existan requisitos de persistencia del servicio, como preferencias entre dispositivos o recordatorios.
 
-La UI podrá mostrar datos almacenados y su antigüedad, actualizar a petición y conservar la última instantánea ante un fallo de red. El acceso inicial exigirá ambos proveedores; una caída temporal posterior permitirá acceso parcial y reintento. La estrategia contempla transacciones, aislamiento por cuenta, migraciones y borrado al cerrar sesión.
+La UI muestra origen y antigüedad, permite actualizar y conserva la última instantánea ante un fallo de red. El acceso inicial exige ambos proveedores. Android permite lectura local con acceso protegido previamente validado y caché propia. Cerrar sesión elimina el acceso y conserva bloqueados los cursos de esa cuenta.
 
 Consulta [datos y persistencia](docs/diseno/datos-y-persistencia.md) para esquema inicial, elección de librería, actualización y pruebas previstas.
 
@@ -117,7 +119,7 @@ Consulta [datos y persistencia](docs/diseno/datos-y-persistencia.md) para esquem
 | DevTools / Network | Analizar formularios, solicitudes y redirecciones | Herramienta de investigación. |
 | ADB y emulador/dispositivo | Instalar y observar Android | Necesarios al ejecutar la app. |
 | Figma | Diseñar flujos, componentes y pantallas | Referencia de diseño del producto. |
-| Room / SQLite e inspector SQL | Caché, consultas y migraciones | Propuestos al implementar consulta sin conexión. |
+| Room / SQLite | Caché y consultas por cuenta | Cursos persistidos en Android/JVM; esquema inicial versionado. |
 | GitHub Actions | Repetir comprobaciones de build y pruebas | Planificado. |
 | WorkManager | Sincronización Android que deba sobrevivir al cierre | Previsto si el requisito lo necesita. |
 | Docker Compose y cliente PostgreSQL o SQLite | Entorno local de servicios del BFF | Previstos cuando se incorpore esa persistencia. |
@@ -166,6 +168,7 @@ La [estrategia de calidad](docs/desarrollo/calidad.md) distingue pruebas de domi
 | [Estructura KMP](docs/estructura-del-proyecto.md) | Ubicar código y comprender conjuntos de fuentes. |
 | [Entorno](docs/desarrollo/entorno.md) | Configurar JDK/SDK y ejecutar comandos. |
 | [Datos y persistencia](docs/diseno/datos-y-persistencia.md) | Entender DB, caché, recuperación y sincronización. |
+| [Apariencia](docs/diseno/apariencia.md) | Tema, preferencias y componentes compartidos. |
 | [Autenticación](docs/integraciones/autenticacion.md) | Seguir el flujo Moodle/Campus/Intranet y sus pruebas. |
 | [Calidad](docs/desarrollo/calidad.md) | Diseñar pruebas y revisar evidencia. |
 | [Diseño y trazabilidad](docs/diseno/proceso-y-trazabilidad.md) | Relacionar requisitos, OOHDM, interfaz, implementación y pruebas. |
