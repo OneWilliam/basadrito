@@ -1,0 +1,633 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "6b0990706371e1303ad3fbede70e1c24",
+    "entities": [
+      {
+        "tableName": "courses",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`provider` TEXT NOT NULL, `ownerId` INTEGER NOT NULL, `courseId` INTEGER NOT NULL, `name` TEXT NOT NULL, `shortName` TEXT NOT NULL, `position` INTEGER NOT NULL, `startsAtEpochSeconds` INTEGER, `endsAtEpochSeconds` INTEGER, PRIMARY KEY(`provider`, `ownerId`, `courseId`))",
+        "fields": [
+          {
+            "fieldPath": "provider",
+            "columnName": "provider",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ownerId",
+            "columnName": "ownerId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "courseId",
+            "columnName": "courseId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "shortName",
+            "columnName": "shortName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startsAtEpochSeconds",
+            "columnName": "startsAtEpochSeconds",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "endsAtEpochSeconds",
+            "columnName": "endsAtEpochSeconds",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "provider",
+            "ownerId",
+            "courseId"
+          ]
+        }
+      },
+      {
+        "tableName": "course_snapshots",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`provider` TEXT NOT NULL, `ownerId` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`provider`, `ownerId`))",
+        "fields": [
+          {
+            "fieldPath": "provider",
+            "columnName": "provider",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ownerId",
+            "columnName": "ownerId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtMillis",
+            "columnName": "updatedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "provider",
+            "ownerId"
+          ]
+        }
+      },
+      {
+        "tableName": "academic_snapshots",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`accountKey` TEXT NOT NULL, `provider` TEXT NOT NULL, `ownerId` INTEGER NOT NULL, `approvedCredits` REAL, `totalCredits` REAL, `creditsAtMillis` INTEGER, `scheduleAtMillis` INTEGER, `attendanceAtMillis` INTEGER, `teachersAtMillis` INTEGER, `tasksAtMillis` INTEGER, PRIMARY KEY(`accountKey`))",
+        "fields": [
+          {
+            "fieldPath": "accountKey",
+            "columnName": "accountKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "provider",
+            "columnName": "provider",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ownerId",
+            "columnName": "ownerId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "approvedCredits",
+            "columnName": "approvedCredits",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "totalCredits",
+            "columnName": "totalCredits",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "creditsAtMillis",
+            "columnName": "creditsAtMillis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "scheduleAtMillis",
+            "columnName": "scheduleAtMillis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "attendanceAtMillis",
+            "columnName": "attendanceAtMillis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "teachersAtMillis",
+            "columnName": "teachersAtMillis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "tasksAtMillis",
+            "columnName": "tasksAtMillis",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "accountKey"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_academic_snapshots_provider_ownerId",
+            "unique": true,
+            "columnNames": [
+              "provider",
+              "ownerId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_academic_snapshots_provider_ownerId` ON `${TABLE_NAME}` (`provider`, `ownerId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "academic_classes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`accountKey` TEXT NOT NULL, `position` INTEGER NOT NULL, `course` TEXT NOT NULL, `detail` TEXT NOT NULL, `day` TEXT NOT NULL, `startTime` TEXT NOT NULL, `endTime` TEXT NOT NULL, `startIso` TEXT NOT NULL, `endIso` TEXT NOT NULL, PRIMARY KEY(`accountKey`, `position`), FOREIGN KEY(`accountKey`) REFERENCES `academic_snapshots`(`accountKey`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "accountKey",
+            "columnName": "accountKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "course",
+            "columnName": "course",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "detail",
+            "columnName": "detail",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "day",
+            "columnName": "day",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startTime",
+            "columnName": "startTime",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endTime",
+            "columnName": "endTime",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startIso",
+            "columnName": "startIso",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endIso",
+            "columnName": "endIso",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "accountKey",
+            "position"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "academic_snapshots",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "accountKey"
+            ],
+            "referencedColumns": [
+              "accountKey"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "academic_attendance",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`accountKey` TEXT NOT NULL, `position` INTEGER NOT NULL, `course` TEXT NOT NULL, `attended` INTEGER NOT NULL, `dictated` INTEGER NOT NULL, PRIMARY KEY(`accountKey`, `position`), FOREIGN KEY(`accountKey`) REFERENCES `academic_snapshots`(`accountKey`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "accountKey",
+            "columnName": "accountKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "course",
+            "columnName": "course",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attended",
+            "columnName": "attended",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dictated",
+            "columnName": "dictated",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "accountKey",
+            "position"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "academic_snapshots",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "accountKey"
+            ],
+            "referencedColumns": [
+              "accountKey"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "academic_teachers",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`accountKey` TEXT NOT NULL, `courseId` INTEGER NOT NULL, `name` TEXT NOT NULL, PRIMARY KEY(`accountKey`, `courseId`), FOREIGN KEY(`accountKey`) REFERENCES `academic_snapshots`(`accountKey`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "accountKey",
+            "columnName": "accountKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "courseId",
+            "columnName": "courseId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "accountKey",
+            "courseId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "academic_snapshots",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "accountKey"
+            ],
+            "referencedColumns": [
+              "accountKey"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "academic_tasks",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`accountKey` TEXT NOT NULL, `taskId` INTEGER NOT NULL, `courseId` INTEGER NOT NULL, `name` TEXT NOT NULL, `dueAtEpochSeconds` INTEGER, `opensAtEpochSeconds` INTEGER, `submission` TEXT NOT NULL, `graded` INTEGER, PRIMARY KEY(`accountKey`, `taskId`), FOREIGN KEY(`accountKey`) REFERENCES `academic_snapshots`(`accountKey`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "accountKey",
+            "columnName": "accountKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "taskId",
+            "columnName": "taskId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "courseId",
+            "columnName": "courseId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dueAtEpochSeconds",
+            "columnName": "dueAtEpochSeconds",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "opensAtEpochSeconds",
+            "columnName": "opensAtEpochSeconds",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "submission",
+            "columnName": "submission",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "graded",
+            "columnName": "graded",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "accountKey",
+            "taskId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "academic_snapshots",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "accountKey"
+            ],
+            "referencedColumns": [
+              "accountKey"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "calendar_months",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`bucket` TEXT NOT NULL, `provider` TEXT NOT NULL, `ownerId` INTEGER NOT NULL, `month` TEXT NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`bucket`))",
+        "fields": [
+          {
+            "fieldPath": "bucket",
+            "columnName": "bucket",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "provider",
+            "columnName": "provider",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ownerId",
+            "columnName": "ownerId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "month",
+            "columnName": "month",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtMillis",
+            "columnName": "updatedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "bucket"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_calendar_months_provider_ownerId_month",
+            "unique": true,
+            "columnNames": [
+              "provider",
+              "ownerId",
+              "month"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_calendar_months_provider_ownerId_month` ON `${TABLE_NAME}` (`provider`, `ownerId`, `month`)"
+          }
+        ]
+      },
+      {
+        "tableName": "calendar_classes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`bucket` TEXT NOT NULL, `position` INTEGER NOT NULL, `course` TEXT NOT NULL, `detail` TEXT NOT NULL, `day` TEXT NOT NULL, `startTime` TEXT NOT NULL, `endTime` TEXT NOT NULL, `startIso` TEXT NOT NULL, `endIso` TEXT NOT NULL, PRIMARY KEY(`bucket`, `position`), FOREIGN KEY(`bucket`) REFERENCES `calendar_months`(`bucket`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "bucket",
+            "columnName": "bucket",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "course",
+            "columnName": "course",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "detail",
+            "columnName": "detail",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "day",
+            "columnName": "day",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startTime",
+            "columnName": "startTime",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endTime",
+            "columnName": "endTime",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startIso",
+            "columnName": "startIso",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endIso",
+            "columnName": "endIso",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "bucket",
+            "position"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "calendar_months",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "bucket"
+            ],
+            "referencedColumns": [
+              "bucket"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "personal_agenda",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`provider` TEXT NOT NULL, `ownerId` INTEGER NOT NULL, `id` TEXT NOT NULL, `title` TEXT NOT NULL, `description` TEXT NOT NULL, `kind` TEXT NOT NULL, `date` TEXT, `time` TEXT, `completed` INTEGER NOT NULL, PRIMARY KEY(`provider`, `ownerId`, `id`))",
+        "fields": [
+          {
+            "fieldPath": "provider",
+            "columnName": "provider",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ownerId",
+            "columnName": "ownerId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "time",
+            "columnName": "time",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "completed",
+            "columnName": "completed",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "provider",
+            "ownerId",
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6b0990706371e1303ad3fbede70e1c24')"
+    ]
+  }
+}

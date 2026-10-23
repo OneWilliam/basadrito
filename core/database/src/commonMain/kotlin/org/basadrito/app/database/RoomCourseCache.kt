@@ -7,8 +7,22 @@ import org.basadrito.app.data.cache.CourseCache
 import org.basadrito.app.data.cache.CourseOwner
 import org.basadrito.app.data.cache.CourseCacheStorageException
 import androidx.sqlite.SQLiteException
+import kotlinx.coroutines.flow.*
+import org.basadrito.app.domain.courses.CourseSummary
 
 class RoomCourseCache(private val database: AcademicDatabase) : CourseCache {
+    override fun observe(owner: CourseOwner): Flow<CachedCourses?> = database.courseDao()
+        .observe(owner.provider, owner.userId).map { rows ->
+            rows.firstOrNull()?.let { first ->
+                CachedCourses(rows.mapNotNull { row -> row.courseId?.let { id ->
+                    CourseSummary(id, requireNotNull(row.name), requireNotNull(row.shortName), row.startsAtEpochSeconds, row.endsAtEpochSeconds)
+                } }, first.updatedAtMillis)
+            }
+        }.distinctUntilChanged().catch { error ->
+            if (error is SQLiteException) throw CourseCacheStorageException(error)
+            throw error
+        }
+
     private val mutex = Mutex()
     override suspend fun read(owner: CourseOwner): CachedCourses? = storageOperation { database.courseDao().read(owner) }
     override suspend fun replace(owner: CourseOwner, snapshot: CachedCourses, isCurrent: () -> Boolean): Boolean =

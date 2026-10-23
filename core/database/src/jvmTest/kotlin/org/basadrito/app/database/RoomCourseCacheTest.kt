@@ -1,6 +1,9 @@
 package org.basadrito.app.database
 
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 import org.basadrito.app.data.cache.*
 import org.basadrito.app.domain.courses.CourseSummary
 import java.nio.file.Files
@@ -9,6 +12,27 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.*
 
 class RoomCourseCacheTest {
+    @Test fun observationEmitsAtomicReplacementsEmptySnapshotAndSelectiveDelete() = runTest {
+        val path = Files.createTempDirectory("basadrito-room-observe").resolve("academic.db").toString()
+        val owner = CourseOwner("moodle:unjbg", 12)
+        val other = CourseOwner("moodle:unjbg", 99)
+        val cache = RoomCourseCache(openAcademicDatabase(path))
+        val events = Channel<CachedCourses?>(Channel.UNLIMITED)
+        val observation = backgroundScope.launch { cache.observe(owner).collect { events.send(it) } }
+        try {
+            assertNull(events.receive())
+            val first = CachedCourses((1..30).map { CourseSummary(it, "Curso $it", "C$it") }, 123)
+            cache.replace(owner, first) { true }
+            assertEquals(first, events.receive())
+            cache.replace(other, CachedCourses(listOf(CourseSummary(99, "Otra cuenta", "B")), 456)) { true }
+            val empty = CachedCourses(emptyList(), 789)
+            cache.replace(owner, empty) { true }
+            assertEquals(empty, events.receive())
+            cache.delete(owner)
+            assertNull(events.receive())
+            assertEquals("Otra cuenta", cache.read(other)!!.courses.single().name)
+        } finally { observation.cancel(); cache.close() }
+    }
     @Test fun sqliteFailureIsExposedAsStorageFailureInsteadOfAnAbsentRow() = runTest {
         val path = Files.createTempDirectory("basadrito-room-error-test").resolve("academic.db").toString()
         val owner = CourseOwner("moodle:unjbg", 12)
