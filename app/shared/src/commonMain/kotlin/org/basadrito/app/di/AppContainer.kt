@@ -7,11 +7,14 @@ import org.basadrito.app.feature.dashboard.DashboardViewModel
 import org.basadrito.app.feature.onboarding.MemoryOnboardingPreferences
 import org.basadrito.app.feature.onboarding.OnboardingPreferences
 import org.basadrito.app.feature.onboarding.OnboardingViewModel
+import org.basadrito.app.designsystem.AppearancePreferences
+import org.basadrito.app.designsystem.MemoryAppearancePreferences
 
 class AppContainer(
     private val authRepository: AuthRepository,
     private val coursesRepository: CoursesRepository,
     private val onboardingPreferences: OnboardingPreferences = MemoryOnboardingPreferences(),
+    val appearance: AppearancePreferences = MemoryAppearancePreferences(),
 ) {
     fun createOnboardingViewModel() = OnboardingViewModel(onboardingPreferences)
 

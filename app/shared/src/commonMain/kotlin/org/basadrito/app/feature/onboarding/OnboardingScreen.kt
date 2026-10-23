@@ -33,6 +33,7 @@ import org.jetbrains.compose.resources.painterResource
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+import org.basadrito.app.designsystem.BasadritoColors
 
 private data class OnboardingPage(
     val color: Color,
@@ -66,9 +67,9 @@ fun OnboardingScreen(step: Int, onNext: () -> Unit, onBack: () -> Unit) {
                 Image(painterResource(page.illustration), null,
                     Modifier.fillMaxWidth().aspectRatio(390f / 495f), contentScale = ContentScale.FillWidth)
                 Column(Modifier.padding(horizontal = 18.dp, vertical = 10.dp)) {
-                    Text(page.eyebrow, fontSize = 10.sp, lineHeight = 24.sp)
-                    Text(page.title, style = MaterialTheme.typography.headlineLarge, lineHeight = 36.sp)
-                    Text(page.description, fontSize = 14.sp, lineHeight = 28.sp, fontWeight = FontWeight.Medium)
+                    Text(page.eyebrow, fontSize = 10.sp, lineHeight = 24.sp, color = BasadritoColors.ink)
+                    Text(page.title, style = MaterialTheme.typography.headlineLarge, lineHeight = 36.sp, color = BasadritoColors.ink)
+                    Text(page.description, fontSize = 14.sp, lineHeight = 28.sp, fontWeight = FontWeight.Medium, color = BasadritoColors.ink)
                 }
                 Spacer(Modifier.weight(1f).heightIn(min = 24.dp))
                 Image(painterResource(page.indicator), "Paso $step de 3",
@@ -86,14 +87,14 @@ fun OnboardingScreen(step: Int, onNext: () -> Unit, onBack: () -> Unit) {
 @Composable
 private fun OnboardingButton(text: String, onClick: () -> Unit) {
     Button(onClick, Modifier.widthIn(min = 132.dp).heightIn(min = 48.dp), shape = CircleShape,
-        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0A0A0B))) {
+        colors = ButtonDefaults.buttonColors()) {
         Text(text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
 @Composable
 private fun WelcomeScreen(onStart: () -> Unit) {
-    Box(Modifier.fillMaxSize().background(Color.White), contentAlignment = Alignment.TopCenter) {
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.TopCenter) {
         BoxWithConstraints(Modifier.widthIn(max = 480.dp).fillMaxSize().safeDrawingPadding()) {
             val viewportHeight = maxHeight
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = viewportHeight),
@@ -103,12 +104,12 @@ private fun WelcomeScreen(onStart: () -> Unit) {
                 Text(buildAnnotatedString {
                     append("Bienvenido a ")
                     withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("Basadrito") }
-                }, Modifier.padding(horizontal = 24.dp), fontSize = 30.sp, lineHeight = 36.sp, letterSpacing = (-1).sp)
+                }, Modifier.padding(horizontal = 24.dp), fontSize = 30.sp, lineHeight = 36.sp, letterSpacing = (-1).sp, color = MaterialTheme.colorScheme.onBackground)
                 Text("Tu vida universitaria en\nun solo lugar.", Modifier.padding(top = 38.dp, bottom = 60.dp),
                     fontSize = 24.sp, lineHeight = 26.sp, letterSpacing = (-1).sp,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center, color = MaterialTheme.colorScheme.onBackground)
                 Button(onStart, Modifier.padding(horizontal = 42.dp).fillMaxWidth().heightIn(min = 48.dp),
-                    shape = CircleShape, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF6B5E))) {
+                    shape = CircleShape, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF6B5E), contentColor = BasadritoColors.ink)) {
                     Text("Comenzar", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 }
                 Spacer(Modifier.height(48.dp))

@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -12,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
@@ -34,19 +36,21 @@ fun LoginScreen(
 ) {
     val uriHandler = LocalUriHandler.current
     val canSubmit = state.username.isNotBlank() && state.moodlePassword.isNotBlank() && !state.isLoading
-    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(
+    val dark = LocalDarkAppearance.current
+    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(if (dark)
+        listOf(Color(0xFF0B0B0B), Color(0xFF141416), Color(0xFF1B1C20)) else listOf(
         BasadritoColors.loginStart, BasadritoColors.loginMiddle, BasadritoColors.loginEnd))),
         contentAlignment = Alignment.TopCenter) {
         Column(Modifier.widthIn(max = 480.dp).fillMaxWidth().fillMaxHeight().imePadding()
             .statusBarsPadding().navigationBarsPadding().verticalScroll(rememberScrollState())) {
             LoginHero()
-            Surface(Modifier.fillMaxWidth(), color = BasadritoColors.white,
+            Surface(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(topStart = BasadritoTokens.sheetRadius, topEnd = BasadritoTokens.sheetRadius)) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = BasadritoTokens.formPadding).padding(top = 28.dp, bottom = 30.dp),
                     verticalArrangement = Arrangement.spacedBy(BasadritoTokens.fieldGap)) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Inicia sesión", style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = (-0.24).sp), color = BasadritoColors.ink)
-                        Text("Usa tus credenciales institucionales", style = MaterialTheme.typography.bodyMedium, color = BasadritoColors.loginSecondaryText)
+                        Text("Inicia sesión", style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = (-0.24).sp), color = MaterialTheme.colorScheme.onSurface)
+                        Text("Usa tus credenciales institucionales", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     BasadritoTextField(state.username, onUsernameChange, "Código universitario", "Ingresa tu código", Res.drawable.icon_user, !state.isLoading)
                     BasadritoTextField(state.moodlePassword, onMoodlePasswordChange, "Contraseña Moodle", "Ingresa tu contraseña", Res.drawable.icon_lock, !state.isLoading, isPassword = true)
@@ -54,7 +58,7 @@ fun LoginScreen(
                         isPassword = true, imeAction = ImeAction.Done, onSubmit = { if (canSubmit) onLogin() })
                     TextButton(onClick = { uriHandler.openUri("https://campus.unjbg.edu.pe/") },
                         modifier = Modifier.align(Alignment.End), enabled = !state.isLoading,
-                        contentPadding = PaddingValues(0.dp), colors = ButtonDefaults.textButtonColors(contentColor = BasadritoColors.recoveryLink)) {
+                        contentPadding = PaddingValues(0.dp), colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)) {
                         Text("¿Olvidaste tu contraseña?", style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
                     }
                     state.errorMessage?.let { error ->
@@ -65,7 +69,7 @@ fun LoginScreen(
                     }
                     BasadritoPrimaryButton(canSubmit, state.isLoading, state.loadingMessage, onLogin)
                     Text("Términos de uso y condiciones · Política de privacidad", Modifier.fillMaxWidth(),
-                        style = MaterialTheme.typography.bodySmall, color = BasadritoColors.inputHint, textAlign = TextAlign.Center)
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 }
             }
         }
@@ -76,13 +80,19 @@ fun LoginScreen(
 private fun LoginHero() {
     // Figma incluye 44 px de barra de estado: la aplicación usa los insets reales del sistema.
     Box(Modifier.fillMaxWidth().height(293.dp).clipToBounds()) {
+        if (LocalDarkAppearance.current) {
+            Box(Modifier.offset(x = (-70).dp, y = (-24).dp).size(240.dp).background(Color.White.copy(alpha = .04f), CircleShape))
+            Box(Modifier.align(Alignment.TopEnd).offset(x = 40.dp, y = 66.dp).size(180.dp).background(Color.White.copy(alpha = .04f), CircleShape))
+            DarkBrandMark(Modifier.align(Alignment.TopCenter).offset(y = 36.dp).size(143.dp, 155.dp))
+        } else {
         Image(painterResource(Res.drawable.login_deco_left), null, Modifier.offset(x = (-70).dp, y = (-24).dp).size(240.dp))
         Image(painterResource(Res.drawable.login_deco_right), null, Modifier.align(Alignment.TopEnd).offset(x = 40.dp, y = 66.dp).size(180.dp))
         Image(painterResource(Res.drawable.login_deco_small), null, Modifier.align(Alignment.TopEnd).offset(x = (-30).dp, y = (-24).dp).size(60.dp))
         Image(painterResource(Res.drawable.login_glow), null, Modifier.align(Alignment.TopCenter).offset(y = (-54).dp).size(300.dp))
         Image(painterResource(Res.drawable.logo), "Logo de Basadrito", contentScale = ContentScale.FillBounds, modifier = Modifier.align(Alignment.TopCenter).offset(y = 36.dp).size(width = 154.dp, height = 141.dp))
+        }
         Text("Basadrito", Modifier.align(Alignment.TopCenter).offset(y = 194.dp),
             style = MaterialTheme.typography.displaySmall.copy(fontSize = 36.sp, lineHeight = 44.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.72).sp),
-            color = BasadritoColors.ink)
+            color = if (LocalDarkAppearance.current) MaterialTheme.colorScheme.onBackground else BasadritoColors.ink)
     }
 }

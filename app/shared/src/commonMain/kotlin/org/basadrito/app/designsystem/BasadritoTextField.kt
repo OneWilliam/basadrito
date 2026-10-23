@@ -55,14 +55,14 @@ fun BasadritoTextField(
     val shape = RoundedCornerShape(BasadritoTokens.fieldRadius)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, lineHeight = 16.sp,
-            fontWeight = FontWeight.SemiBold), color = colors.ink)
+            fontWeight = FontWeight.SemiBold), color = MaterialTheme.colorScheme.onSurface)
         BasicTextField(
             value = value, onValueChange = onValueChange, enabled = enabled,
             modifier = Modifier.fillMaxWidth().heightIn(min = BasadritoTokens.fieldMinHeight)
                 .semantics { contentDescription = label }
-                .background(if (focused) colors.white else colors.inputSurface, shape)
+                .background(LoginColors.fieldSurface, shape)
                 .border(if (focused) 2.dp else 1.dp, if (focused) colors.coral else colors.inputBorder, shape),
-            textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 20.sp, color = colors.ink),
+            textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 20.sp, color = LoginColors.fieldText),
             singleLine = true, interactionSource = interaction,
             cursorBrush = SolidColor(colors.coral),
             visualTransformation = if (isPassword && !passwordVisible) PasswordVisualTransformation() else VisualTransformation.None,
@@ -74,7 +74,7 @@ fun BasadritoTextField(
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Image(painterResource(icon), null, Modifier.size(20.dp))
                     Box(Modifier.weight(1f)) {
-                        if (value.isEmpty()) Text(placeholder, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp), color = colors.inputHint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (value.isEmpty()) Text(placeholder, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp), color = LoginColors.fieldHint, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         input()
                     }
                     if (isPassword) IconButton(onClick = { passwordVisible = !passwordVisible }, enabled = enabled,
