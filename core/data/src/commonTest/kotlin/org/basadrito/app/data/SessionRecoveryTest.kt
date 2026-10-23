@@ -292,7 +292,8 @@ class SessionRecoveryTest {
         assertNull(reopened.session.authenticated())
         reopened.httpClients.single().coroutineContext[Job]!!.join()
         assertFalse(reopened.httpClients.single().coroutineContext[Job]!!.isActive)
-        assertEquals(StorageOperation.READ_COURSES, events.single().operation)
+        assertEquals(StorageArea.COURSE_CACHE, events.single().area)
+        assertEquals(StorageAction.READ, events.single().action)
         assertFalse(events.single().logLine().contains("fixture-secret"))
     }
 

@@ -62,7 +62,8 @@ class CourseCacheRepositoryTest {
                 assertEquals(CourseSource.REMOTE, result.source)
                 assertEquals(CourseCacheWarning.WRITE_FAILED, result.cacheWarning)
                 assertTrue(cache.values.isEmpty())
-                assertEquals(if (throwsStorageError) listOf(StorageOperation.WRITE_COURSES) else emptyList(), events.map { it.operation })
+                assertEquals(if (throwsStorageError) listOf(StorageArea.COURSE_CACHE to StorageAction.WRITE) else emptyList(),
+                    events.map { it.area to it.action })
                 assertFalse(events.joinToString { it.logLine() }.contains("fixture-token-secret"))
             } finally { session.clear() }
         }

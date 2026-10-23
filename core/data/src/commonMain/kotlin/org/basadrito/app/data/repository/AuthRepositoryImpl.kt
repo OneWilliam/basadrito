@@ -68,7 +68,7 @@ class AuthRepositoryImpl(
             throw cancelled
         } catch (error: Exception) {
             session.discard(candidate)
-            storageDiagnostics.report(StorageOperation.LOAD_SESSION, error)
+            storageDiagnostics.report(StorageArea.SESSION_STORE, StorageAction.READ, error)
             return Result.failure(SessionRecoveryException(SessionRecoveryFailure.STORAGE))
         }
         if (saved == null) {
@@ -122,7 +122,7 @@ class AuthRepositoryImpl(
                     val local = try {
                         cache.read(CourseOwner(UNJBG_MOODLE_PROVIDER, saved.moodle.userId))
                     } catch (storageError: CourseCacheStorageException) {
-                        storageDiagnostics.report(StorageOperation.READ_COURSES, storageError)
+                        storageDiagnostics.report(StorageArea.COURSE_CACHE, StorageAction.READ, storageError)
                         return Result.failure(SessionRecoveryException(SessionRecoveryFailure.STORAGE))
                     }
                     session.requireCurrent(candidate)
@@ -140,7 +140,7 @@ class AuthRepositoryImpl(
                     try { session.forgetSaved(candidate) }
                     catch (cancelled: CancellationException) { throw cancelled }
                     catch (storageError: Exception) {
-                        storageDiagnostics.report(StorageOperation.CLEAR_SESSION, storageError)
+                        storageDiagnostics.report(StorageArea.SESSION_STORE, StorageAction.CLEAR, storageError)
                         return Result.failure(SessionRecoveryException(SessionRecoveryFailure.STORAGE))
                     }
                 }

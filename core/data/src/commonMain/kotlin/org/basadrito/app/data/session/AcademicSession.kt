@@ -1,6 +1,8 @@
 package org.basadrito.app.data.session
 
 import io.ktor.client.plugins.cookies.CookiesStorage
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.getAndUpdate
 import org.basadrito.app.data.di.IntegrationClients
@@ -23,9 +25,14 @@ class AcademicSession(
         var moodle: MoodleSession? = null,
         var mode: AccessMode = AccessMode.VERIFIED,
         var allowOfflineRead: Boolean = false,
-    )
+    ) {
+        // Work belongs to this login, so leaving a screen cannot cancel another screen's refresh.
+        val workScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    }
 
     private val connection = MutableStateFlow<Connection?>(null)
+    private val active = MutableStateFlow<Connection?>(null)
+    internal val activeConnection = active.asStateFlow()
 
     internal fun begin(): Connection {
         clear()
@@ -55,6 +62,11 @@ class AcademicSession(
             candidate.moodle = null
             return false
         }
+        active.value = candidate
+        if (!isCurrent(candidate)) {
+            active.compareAndSet(candidate, null)
+            return false
+        }
         return true
     }
     internal fun authenticated(): Connection? = connection.value?.takeIf { it.moodle != null }
@@ -78,7 +90,7 @@ class AcademicSession(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
-            diagnostics.report(StorageOperation.SAVE_SESSION, error)
+            diagnostics.report(StorageArea.SESSION_STORE, StorageAction.WRITE, error)
             false // The login result explicitly marks that access was not remembered.
         }
     }
@@ -105,6 +117,8 @@ class AcademicSession(
     fun close() = releaseMemory()
 
     private fun close(candidate: Connection) {
+        active.compareAndSet(candidate, null)
+        candidate.workScope.cancel()
         candidate.moodle = null
         candidate.clients.close()
     }

@@ -1,6 +1,8 @@
 package org.basadrito.app.data.cache
 
 import org.basadrito.app.domain.courses.CourseSummary
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 
 /** Provider + external user ID, never an unverified username or a global "current user" row. */
 data class CourseOwner(val provider: String, val userId: Int) {
@@ -14,6 +16,7 @@ class CourseCacheStorageException(cause: Exception) : Exception("No se pudo acce
 
 /** Storage failures use CourseCacheStorageException; cancellation and programming errors propagate. */
 interface CourseCache {
+    fun observe(owner: CourseOwner): Flow<CachedCourses?> = flow { emit(read(owner)) }
     suspend fun read(owner: CourseOwner): CachedCourses?
     suspend fun replace(owner: CourseOwner, snapshot: CachedCourses, isCurrent: () -> Boolean): Boolean
     suspend fun delete(owner: CourseOwner)

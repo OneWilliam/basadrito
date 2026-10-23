@@ -1,6 +1,10 @@
 package org.basadrito.app.domain.courses
 
-data class CourseSummary(val id: Int, val name: String, val shortName: String)
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+
+data class CourseSummary(val id: Int, val name: String, val shortName: String,
+    val startsAtEpochSeconds: Long? = null, val endsAtEpochSeconds: Long? = null)
 
 enum class CourseSource { REMOTE, CACHE }
 
@@ -17,9 +21,23 @@ data class CourseSnapshot(
 )
 
 interface CoursesRepository {
+    /** Account-scoped local changes and shared refresh progress. */
+    fun observeCourses(): Flow<CourseFeed> = emptyFlow()
+
+    suspend fun refreshCourses(initial: Boolean = false): Result<CourseSnapshot?> = getSnapshot()
+
     suspend fun getCourses(): Result<List<CourseSummary>>
 
     suspend fun getSnapshot(refresh: Boolean = true): Result<CourseSnapshot?> =
         if (!refresh) Result.success(null)
         else getCourses().map { CourseSnapshot(it, CourseSource.REMOTE) }
 }
+
+data class CourseFeed(
+    val snapshot: CourseSnapshot? = null,
+    val isRefreshing: Boolean = false,
+    val storageReadFailed: Boolean = false,
+    val failure: CourseFailure? = null,
+)
+
+enum class CourseFailure { STORAGE, REMOTE }
