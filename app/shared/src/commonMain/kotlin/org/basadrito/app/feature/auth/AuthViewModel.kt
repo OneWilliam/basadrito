@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import org.basadrito.app.domain.auth.AuthRepository
 import org.basadrito.app.domain.auth.PortalAccess
 import org.basadrito.app.domain.auth.SessionRecoveryException
+import org.basadrito.app.domain.auth.AccessMode
 import kotlin.coroutines.cancellation.CancellationException
 
 class AuthViewModel(
@@ -26,7 +27,7 @@ class AuthViewModel(
     init { restoreSession() }
 
     fun restoreSession(): Job? {
-        if (state.value.isLoading || state.value.access != null) return null
+        if (state.value.isLoading || state.value.access?.mode == AccessMode.VERIFIED) return null
         val request = ++generation
         mutableState.value = AuthUiState(isRestoring = true, isLoading = true, loadingMessage = "Recuperando acceso…")
         return operationScope.launch {

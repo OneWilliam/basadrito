@@ -9,6 +9,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.basadrito.app.domain.courses.CoursesRepository
+import org.basadrito.app.domain.courses.CourseSnapshot
+import org.basadrito.app.domain.courses.CourseCacheWarning
+import org.basadrito.app.domain.courses.CoursesStorageException
 import kotlin.coroutines.cancellation.CancellationException
 
 class DashboardViewModel(
@@ -21,14 +24,20 @@ class DashboardViewModel(
     private var operation: Job? = null
     private var cleared = false
 
+    init { loadCourses() }
+
     fun loadCourses(): Job? {
         if (cleared || state.value.isLoading) return null
         mutableState.update { it.copy(isLoading = true, errorMessage = null) }
         return operationScope.launch {
             try {
-                courses.getCourses().fold(
-                    onSuccess = { result -> if (!cleared) mutableState.update { it.copy(courses = result) } },
-                    onFailure = { if (!cleared) showError() },
+                courses.getSnapshot(refresh = false).fold(
+                    onSuccess = { it?.let(::showSnapshot) },
+                    onFailure = { if (!cleared) mutableState.update { it.copy(cacheWarning = CourseCacheWarning.READ_FAILED) } },
+                )
+                courses.getSnapshot().fold(
+                    onSuccess = { result -> result?.let(::showSnapshot) },
+                    onFailure = { error -> if (!cleared) showError(error) },
                 )
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -40,8 +49,15 @@ class DashboardViewModel(
         }.also { operation = it }
     }
 
-    private fun showError() {
-        mutableState.update { it.copy(errorMessage = "No se pudieron cargar los cursos. Intenta nuevamente.") }
+    private fun showError(error: Throwable? = null) {
+        mutableState.update { it.copy(errorMessage = if (error is CoursesStorageException) error.message
+            else "No se pudieron cargar los cursos. Intenta nuevamente.") }
+    }
+
+    private fun showSnapshot(snapshot: CourseSnapshot) {
+        if (!cleared) mutableState.update { it.copy(courses = snapshot.courses, source = snapshot.source,
+            updatedAtMillis = snapshot.updatedAtMillis, refreshFailed = snapshot.refreshFailed,
+            cacheWarning = snapshot.cacheWarning, errorMessage = null) }
     }
 
     override fun onCleared() {

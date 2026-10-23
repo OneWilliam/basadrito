@@ -20,13 +20,15 @@ import androidx.compose.ui.platform.LocalUriHandler
 @Composable
 fun App(
     container: AppContainer,
+    onDarkChanged: (Boolean) -> Unit = {},
     intranetEvaluationContent: (@Composable (onConfirmed: (PortalAccess) -> Unit, onSignOut: () -> Unit) -> Unit)? = null,
 ) {
     val onboarding: OnboardingViewModel = viewModel { container.createOnboardingViewModel() }
     val onboardingStep by onboarding.step.collectAsStateWithLifecycle()
     val auth: AuthViewModel = viewModel { container.createAuthViewModel() }
     val state by auth.state.collectAsStateWithLifecycle()
-    BasadritoTheme {
+    val themeMode by container.appearance.mode.collectAsStateWithLifecycle()
+    BasadritoTheme(themeMode, onDarkChanged) {
         if (onboardingStep != OnboardingViewModel.COMPLETE) {
             OnboardingScreen(onboardingStep, onboarding::next, onboarding::back)
             return@BasadritoTheme
@@ -55,6 +57,9 @@ fun App(
             onSignIn = { auth.signIn() },
             createDashboardViewModel = container::createDashboardViewModel,
             onSignOut = auth::signOut,
+            themeMode = themeMode,
+            onThemeChange = container.appearance::setMode,
+            onReconnect = { auth.restoreSession() },
         )
     }
 }
