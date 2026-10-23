@@ -4,6 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.SystemBarStyle
+import android.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import org.basadrito.app.designsystem.BasadritoTheme
@@ -18,7 +20,11 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val dependencies = application as BasadritoApplication
-            App(dependencies.container) { onConfirmed, onSignOut ->
+            App(dependencies.container, onDarkChanged = { dark ->
+                val style = if (dark) SystemBarStyle.dark(Color.TRANSPARENT)
+                    else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+                enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+            }) { onConfirmed, onSignOut ->
                 IntranetEvaluationPanel(
                     prepareBrowser = dependencies.evaluationSession::prepareBrowser,
                     confirmAccess = dependencies.evaluationSession::confirmAccess,
