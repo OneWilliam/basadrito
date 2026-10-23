@@ -3,11 +3,15 @@ package org.basadrito.app.domain.auth
 data class StudentIdentity(val username: String, val fullName: String)
 enum class IntranetRequirement { TEACHER_EVALUATION }
 
+/** Local access never asserts that either remote provider has validated the session. */
+enum class AccessMode { VERIFIED, LOCAL_ONLY }
+
 data class PortalAccess(
     val student: StudentIdentity,
     val intranetAvailable: Boolean,
     val intranetRequirement: IntranetRequirement? = null,
     val sessionRemembered: Boolean = false,
+    val mode: AccessMode = AccessMode.VERIFIED,
 )
 
 enum class SessionRecoveryFailure { EXPIRED, TEMPORARY, STORAGE }

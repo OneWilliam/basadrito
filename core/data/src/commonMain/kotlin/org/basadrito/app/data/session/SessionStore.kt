@@ -25,6 +25,7 @@ data class SavedSession(
     val moodle: MoodleSession,
     val cookies: List<SavedCookie>,
     val version: Int = 1,
+    val allowOfflineRead: Boolean = false,
 ) {
     override fun toString() = "SavedSession(<redacted>)"
 }

@@ -44,6 +44,7 @@ class AndroidIntranetEvaluationSession(private val session: AcademicSession) {
         }
         check(session.isCurrent(connection)) { "La sesión cambió durante la comprobación." }
         val moodle = connection.moodle ?: error("La sesión ya no está disponible.")
+        connection.allowOfflineRead = true
         PortalAccess(StudentIdentity(moodle.username, moodle.fullName), intranetAvailable = true,
             sessionRemembered = session.persist(connection))
     }

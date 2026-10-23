@@ -19,6 +19,10 @@ fun interface AuthenticationDiagnostics {
     fun report(diagnostic: AuthenticationDiagnostic)
 }
 
+object ConsoleAuthenticationDiagnostics : AuthenticationDiagnostics {
+    override fun report(diagnostic: AuthenticationDiagnostic) = println(diagnostic.logLine())
+}
+
 internal fun authenticationDiagnostic(provider: AuthenticationProvider, error: Exception): AuthenticationDiagnostic {
     val chain = generateSequence(error as Throwable) { it.cause }.take(8).toList()
     val intranet = chain.filterIsInstance<IntranetLoginFailure>().firstOrNull()

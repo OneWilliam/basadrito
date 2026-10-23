@@ -12,6 +12,7 @@ import kotlinx.coroutines.test.runTest
 import org.basadrito.app.data.di.IntegrationClients
 import org.basadrito.app.data.http.createHttpClient
 import org.basadrito.app.data.repository.AuthRepositoryImpl
+import org.basadrito.app.data.repository.AuthenticationDiagnostics
 import org.basadrito.app.data.session.AcademicSession
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.Test
@@ -19,8 +20,18 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.test.fail
+import kotlin.test.assertFailsWith
 
 class AuthRepositoryTest {
+    @Test fun diagnosticCancellationPropagatesAfterProvisionalClientIsClosed() = runTest {
+        val fixture = Fixture(Failure.MOODLE_REJECTED)
+        val repository = AuthRepositoryImpl(fixture.session, AuthenticationDiagnostics { throw CancellationException("fixture") })
+        try {
+            assertFailsWith<CancellationException> { repository.signIn("student", "fixture", "fixture") }
+            fixture.clients.single().coroutineContext[Job]!!.join()
+            assertFalse(fixture.clients.single().coroutineContext[Job]!!.isActive)
+        } finally { repository.signOut() }
+    }
     private enum class Failure { NONE, MOODLE_REJECTED, INTRANET_REJECTED, TRANSPORT, CANCELLED }
 
     private class Fixture(private val failure: Failure = Failure.NONE) {

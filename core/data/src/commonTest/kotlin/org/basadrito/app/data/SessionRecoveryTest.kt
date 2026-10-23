@@ -21,6 +21,14 @@ import org.basadrito.app.data.session.SessionStore
 import org.basadrito.app.domain.auth.IntranetRequirement
 import org.basadrito.app.domain.auth.SessionRecoveryException
 import org.basadrito.app.domain.auth.SessionRecoveryFailure
+import org.basadrito.app.domain.auth.AccessMode
+import org.basadrito.app.data.cache.*
+import org.basadrito.app.domain.courses.CourseSummary
+import org.basadrito.app.data.diagnostics.*
+import org.basadrito.app.data.repository.AuthenticationDiagnostics
+import org.basadrito.app.data.repository.ConsoleAuthenticationDiagnostics
+import io.ktor.client.HttpClient
+import kotlinx.coroutines.Job
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -53,10 +61,28 @@ class SessionRecoveryTest {
 
     private enum class Mode { SUCCESS, NETWORK, REVOKED, EXPIRED, EVALUATION, SERVER_ERROR, CHANGED_HTML, OTHER_IDENTITY, UNKNOWN_MOODLE }
 
-    private class Fixture(val store: Store, val mode: Mode = Mode.SUCCESS) {
+    private class Cache : CourseCache {
+        val values = mutableMapOf<CourseOwner, CachedCourses>()
+        var readFailure: Exception? = null
+        override suspend fun read(owner: CourseOwner): CachedCourses? {
+            readFailure?.let { throw it }
+            return values[owner]
+        }
+        override suspend fun replace(owner: CourseOwner, snapshot: CachedCourses, isCurrent: () -> Boolean): Boolean {
+            if (!isCurrent()) return false
+            values[owner] = snapshot
+            return true
+        }
+        override suspend fun delete(owner: CourseOwner) { values.remove(owner) }
+    }
+
+    private class Fixture(val store: Store, val mode: Mode = Mode.SUCCESS, val cache: CourseCache = NoCourseCache,
+        val diagnostics: AuthenticationDiagnostics = ConsoleAuthenticationDiagnostics,
+        val storageDiagnostics: StorageDiagnostics = ConsoleStorageDiagnostics) {
         val paths = mutableListOf<String>()
         val receivedCookies = mutableListOf<String>()
-        val session = AcademicSession(store) { cookieStorage ->
+        val httpClients = mutableListOf<HttpClient>()
+        val session = AcademicSession(store, diagnostics = storageDiagnostics) { cookieStorage ->
             IntegrationClients(createHttpClient(MockEngine { request ->
                 val path = request.url.encodedPath.ifEmpty { "/" }
                 paths += path
@@ -85,11 +111,11 @@ class SessionRecoveryTest {
                     }
                     else -> error("Unexpected fixture request")
                 }
-            }, cookieStorage))
+            }, cookieStorage).also(httpClients::add))
         }
-        val auth = AuthRepositoryImpl(session)
+        val auth = AuthRepositoryImpl(session, diagnostics, cache, storageDiagnostics)
         suspend fun login() = auth.signIn("student", "fixture-moodle-password", "fixture-intranet-password").getOrThrow()
-        fun endProcess() { session.authenticated()?.let(session::discard) }
+        fun endProcess() = session.close()
     }
 
     @Test
@@ -195,5 +221,89 @@ class SessionRecoveryTest {
         first.auth.signOut()
     }
 
+    @Test
+    fun offlineRecoveryRequiresSavedAccessAndOnlyReadsItsOwner() = runTest {
+        val cache = Cache()
+        val owner = CourseOwner(UNJBG_MOODLE_PROVIDER, 12)
+        val other = CourseOwner(UNJBG_MOODLE_PROVIDER, 99)
+        cache.values[owner] = CachedCourses(listOf(CourseSummary(1, "Cuenta A", "A")), 123)
+        cache.values[other] = CachedCourses(listOf(CourseSummary(1, "Cuenta B", "B")), 456)
+        val store = Store()
+        Fixture(store).apply { login(); endProcess() }
+        val reopened = Fixture(store, Mode.NETWORK, cache)
+        val saved = store.value
+        val access = assertNotNull(reopened.auth.restoreSession().getOrThrow())
+        assertEquals(AccessMode.LOCAL_ONLY, access.mode)
+        assertFalse(access.intranetAvailable)
+        assertEquals(saved, store.value)
+        val courses = org.basadrito.app.data.repository.CoursesRepositoryImpl(reopened.session, cache)
+        assertEquals("Cuenta A", courses.getSnapshot().getOrThrow()!!.courses.single().name)
+        assertEquals(1, reopened.paths.size) // Only restoration attempted HTTP; local reads do not.
+        reopened.auth.signOut()
+        assertNull(store.value)
+        assertTrue(courses.getCourses().isFailure)
+        assertEquals(2, cache.values.size)
+        assertNull(Fixture(store, Mode.NETWORK, cache).auth.restoreSession().getOrThrow())
+    }
+
+    @Test
+    fun cachedDataCannotBypassRevocationUnknownResponsesOrEvaluation() = runTest {
+        val cache = Cache()
+        cache.values[CourseOwner(UNJBG_MOODLE_PROVIDER, 12)] = CachedCourses(emptyList(), 123)
+        for (mode in listOf(Mode.REVOKED, Mode.EXPIRED, Mode.OTHER_IDENTITY, Mode.CHANGED_HTML, Mode.UNKNOWN_MOODLE)) {
+            val store = Store()
+            Fixture(store).apply { login(); endProcess() }
+            val reopened = Fixture(store, mode, cache)
+            assertTrue(reopened.auth.restoreSession().isFailure)
+            assertNull(reopened.session.authenticated())
+            reopened.endProcess()
+        }
+        val store = Store()
+        Fixture(store, Mode.EVALUATION).apply { login(); endProcess() }
+        assertFalse(store.value!!.allowOfflineRead)
+        assertTrue(Fixture(store, Mode.NETWORK, cache).auth.restoreSession().isFailure)
+        assertEquals(1, cache.values.size)
+    }
+
+    @Test
+    fun cacheFromAnotherAccountNeverUnlocksOfflineRecovery() = runTest {
+        val cache = Cache()
+        cache.values[CourseOwner(UNJBG_MOODLE_PROVIDER, 99)] = CachedCourses(emptyList(), 123)
+        val store = Store()
+        Fixture(store).apply { login(); endProcess() }
+        val reopened = Fixture(store, Mode.NETWORK, cache)
+        assertTrue(reopened.auth.restoreSession().isFailure)
+        assertNull(reopened.session.authenticated())
+        assertNotNull(store.value)
+    }
+
     private companion object { val jsonHeaders = headersOf(HttpHeaders.ContentType, "application/json") }
+
+    @Test fun offlineCacheFailureIsReportedAsStorageAndKeepsSavedAccessForRetry() = runTest {
+        val store = Store()
+        Fixture(store).apply { login(); endProcess() }
+        val saved = store.value
+        val cache = Cache().apply { readFailure = CourseCacheStorageException(kotlinx.io.IOException("fixture-secret")) }
+        val events = mutableListOf<StorageDiagnostic>()
+        val reopened = Fixture(store, Mode.NETWORK, cache, storageDiagnostics = StorageDiagnostics(events::add))
+        val error = reopened.auth.restoreSession().exceptionOrNull() as SessionRecoveryException
+        assertEquals(SessionRecoveryFailure.STORAGE, error.reason)
+        assertEquals(saved, store.value)
+        assertNull(reopened.session.authenticated())
+        reopened.httpClients.single().coroutineContext[Job]!!.join()
+        assertFalse(reopened.httpClients.single().coroutineContext[Job]!!.isActive)
+        assertEquals(StorageOperation.READ_COURSES, events.single().operation)
+        assertFalse(events.single().logLine().contains("fixture-secret"))
+    }
+
+    @Test fun diagnosticFailureDuringRestorationStillClosesTheProvisionalClient() = runTest {
+        val store = Store()
+        Fixture(store).apply { login(); endProcess() }
+        val reopened = Fixture(store, Mode.NETWORK,
+            diagnostics = AuthenticationDiagnostics { error("fixture diagnostic bug") })
+        assertFailsWith<IllegalStateException> { reopened.auth.restoreSession() }
+        reopened.httpClients.single().coroutineContext[Job]!!.join()
+        assertFalse(reopened.httpClients.single().coroutineContext[Job]!!.isActive)
+        assertNotNull(store.value)
+    }
 }

@@ -6,18 +6,23 @@ import kotlinx.coroutines.flow.getAndUpdate
 import org.basadrito.app.data.di.IntegrationClients
 import org.basadrito.app.data.http.createHttpClient
 import org.basadrito.app.data.moodle.dto.MoodleSession
+import org.basadrito.app.domain.auth.AccessMode
+import org.basadrito.app.data.diagnostics.*
 import kotlin.coroutines.cancellation.CancellationException
 
 
 
 class AcademicSession(
     private val store: SessionStore = NoSessionStore,
+    private val diagnostics: StorageDiagnostics = ConsoleStorageDiagnostics,
     private val createClients: (CookiesStorage) -> IntegrationClients = { IntegrationClients(createHttpClient(it)) },
 ) {
     internal class Connection(
         val clients: IntegrationClients,
         val cookies: SessionCookieStorage,
         var moodle: MoodleSession? = null,
+        var mode: AccessMode = AccessMode.VERIFIED,
+        var allowOfflineRead: Boolean = false,
     )
 
     private val connection = MutableStateFlow<Connection?>(null)
@@ -63,14 +68,18 @@ class AcademicSession(
     internal suspend fun persist(candidate: Connection): Boolean = candidate.cookies.withSnapshot { persist(candidate, it) }
 
     private suspend fun persist(candidate: Connection, cookies: List<SavedCookie>): Boolean {
+        if (candidate.mode == AccessMode.LOCAL_ONLY) return false
         val moodle = candidate.moodle ?: return false
         if (!isCurrent(candidate)) return false
         return try {
-            store.save(SavedSession(moodle, cookies)) { isCurrent(candidate) && candidate.moodle != null } && isCurrent(candidate)
+            store.save(SavedSession(moodle, cookies, allowOfflineRead = candidate.allowOfflineRead)) {
+                isCurrent(candidate) && candidate.moodle != null
+            } && isCurrent(candidate)
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Exception) {
-            false // Authentication can still work; the UI reports that access was not remembered.
+        } catch (error: Exception) {
+            diagnostics.report(StorageOperation.SAVE_SESSION, error)
+            false // The login result explicitly marks that access was not remembered.
         }
     }
 
@@ -91,6 +100,9 @@ class AcademicSession(
     }
 
     private fun releaseMemory() { connection.getAndUpdate { null }?.let(::close) }
+
+    /** Release process resources without deleting saved access; only signOut clears the store. */
+    fun close() = releaseMemory()
 
     private fun close(candidate: Connection) {
         candidate.moodle = null
