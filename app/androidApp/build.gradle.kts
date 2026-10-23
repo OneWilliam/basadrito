@@ -14,11 +14,15 @@ dependencies {
     implementation(project(":app:shared"))
     implementation(project(":core:domain"))
     implementation(project(":core:data"))
+    implementation(project(":core:database"))
 
     implementation(libs.androidx.activity.compose)
 
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)
+    debugImplementation(libs.compose.uiTestManifest)
+    androidTestImplementation(libs.compose.uiTestJUnit4)
+    androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.testExt.junit)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.kotlinx.coroutines.core)
