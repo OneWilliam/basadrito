@@ -22,7 +22,7 @@ Los colores de texto secundarios se ajustan para legibilidad. El modo oscuro man
 |---|---|
 | [BasadritoTheme](../../app/shared/src/commonMain/kotlin/org/basadrito/app/designsystem/BasadritoTheme.kt) | Resuelve sistema/claro/oscuro y proporciona los roles Material. |
 | [AppearancePreferences](../../app/shared/src/commonMain/kotlin/org/basadrito/app/designsystem/AppearancePreferences.kt) | Contrato observable de preferencia. |
-| [FeatureHeader](../../app/shared/src/commonMain/kotlin/org/basadrito/app/designsystem/FeatureHeader.kt) | Flecha opcional, título, notificaciones y fondo decorado con formas Compose. |
+| [FeatureHeader](../../app/shared/src/commonMain/kotlin/org/basadrito/app/designsystem/FeatureHeader.kt) | `FeatureScreen` fija los controles; `FeatureBackdrop` dibuja el fondo que se desplaza con el contenido. |
 | [DarkBrandMark](../../app/shared/src/commonMain/kotlin/org/basadrito/app/designsystem/DarkBrandMark.kt) | Geometría y relleno angular del logotipo oscuro dibujados con primitivas nativas. |
 | [SettingsScreen](../../app/shared/src/commonMain/kotlin/org/basadrito/app/feature/settings/SettingsScreen.kt) | Identidad, selección de apariencia, estado de acceso y logout. |
 
@@ -32,9 +32,15 @@ Cambiar apariencia actualiza la composición sin recrear la pila ni sus ViewMode
 
 ## Pantallas conectadas
 
-Inicio presenta nombre, cantidad de cursos, origen y actualización disponibles. Cursos añade búsqueda por nombre o nombre corto y tarjetas reutilizables. Ambos permiten actualizar desde Moodle y conservan la última instantánea ante un fallo. Ajustes permite volver a comprobar la conexión cuando el acceso es exclusivamente local.
+Inicio presenta identidad, progreso académico, cursos y tareas. Cursos añade búsqueda por nombre, nombre corto o docente y tarjetas reutilizables. Ambos permiten actualizar los datos y conservan la última instantánea ante un fallo. Ajustes permite volver a comprobar la conexión cuando el acceso es exclusivamente local.
 
-La cabecera se comparte entre esos tres destinos. Notificaciones, Herramientas y Calendario permanecen deshabilitados. Los datos de notas, progreso, créditos, horarios y pendientes del mockup requieren sus integraciones; no se muestran cifras inventadas.
+La cabecera se comparte entre Inicio, Cursos, Calendario y Ajustes. Notificaciones y Herramientas permanecen deshabilitados. Créditos, horarios, docentes, asistencia y pendientes consumen los contratos de datos disponibles; un dato desconocido se representa como tal.
+
+La composición se contrasta con Inicio `386:554` / `565:2405`, Cursos `475:2082` / `566:1815` y Ajustes `488:2405` / `566:2636`. Inicio sitúa el resumen dentro del bloque decorado y ofrece una fila horizontal de cursos; Cursos integra el buscador en la cabecera desplazable; Ajustes superpone el perfil al fondo y agrupa apariencia y cuentas vinculadas. El degradado oscuro tiene los tonos propios de esos mockups.
+
+La flecha, el título y notificaciones permanecen fijos al hacer scroll. El fondo de color, buscador y tarjetas se desplazan. Al desplazarse, una superficie opaca mantiene legibles los controles. La barra inferior permanece en el contenedor de navegación. Las opciones Claro/Oscuro/Sistema se abren desde la fila Modo oscuro para conservar las tres posibilidades.
+
+Inicio incluye progreso de créditos y semana cuando hay fechas comunes válidas. Cursos añade filtros Todos/Hoy/Con pendientes y búsqueda por docente. Calendario incluye mes navegable, selección de día, detalle y filtros por origen; permite administrar tareas, eventos y exámenes personales. Las tareas propias también se administran desde Inicio. Los ajustes de paleta, notificaciones e idioma siguen pendientes. Las fuentes institucionales de eventos y los recordatorios necesitan su definición de datos y reglas.
 
 La barra lateral y la versión web se posponen. Los contenedores y anchos máximos actuales permiten organizar los destinos sin acoplarlos a una futura presentación lateral.
 

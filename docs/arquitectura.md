@@ -74,18 +74,18 @@ La navegación se centraliza en `app/shared/commonMain/navigation` y utiliza [Na
 
 | Archivo | Responsabilidad |
 |---|---|
-| [AppDestination](../app/shared/src/commonMain/kotlin/org/basadrito/app/navigation/AppDestination.kt) | Rutas tipadas serializables de Inicio, Cursos y Ajustes; catálogo de secciones independiente de su presentación. |
+| [AppDestination](../app/shared/src/commonMain/kotlin/org/basadrito/app/navigation/AppDestination.kt) | Rutas tipadas serializables de Inicio, Cursos, Calendario y Ajustes; catálogo de secciones independiente de su presentación. |
 | [AppNavigator](../app/shared/src/commonMain/kotlin/org/basadrito/app/navigation/AppNavigator.kt) | Reglas de selección, retorno entre destinos, prevención de duplicados y reinicio del historial al cerrar sesión. |
 | [AppNavigation](../app/shared/src/commonMain/kotlin/org/basadrito/app/navigation/AppNavigation.kt) | Barrera de autenticación, pila guardable por cuenta, `NavDisplay` y asociación entre rutas y pantallas. |
 | [MainNavigationScaffold](../app/shared/src/commonMain/kotlin/org/basadrito/app/navigation/MainNavigationScaffold.kt) | Barra inferior nativa e insets del sistema. No administra sesión ni crea repositorios. |
 | [DashboardRoute](../app/shared/src/commonMain/kotlin/org/basadrito/app/feature/dashboard/DashboardRoute.kt) | Obtiene el ViewModel del destino y observa los cursos. Navigation 3 conserva su estado mientras exista la entrada. |
 | [SettingsScreen](../app/shared/src/commonMain/kotlin/org/basadrito/app/feature/settings/SettingsScreen.kt) | Identidad de la cuenta, estado de acceso recordado y cierre de sesión. Incluye apariencia y reintento de conexión; los demás ajustes del diseño siguen pendientes. |
 
-Inicio es la raíz autenticada. Seleccionar Cursos o Ajustes añade su entrada; Atrás o seleccionar un destino previo vuelve a esa entrada sin duplicarla. El ViewModel de cursos carga al crearse y se conserva al visitar Ajustes; una actualización manual sigue disponible ante error. Los decoradores de Navigation 3 conservan estado guardable y ViewModels por entrada. Logout reinicia la pila y retira la composición privada, con lo que se liberan sus ViewModels. Las rutas no contienen tokens, cookies ni contraseñas.
+Inicio es la raíz autenticada. Seleccionar Cursos o Ajustes añade su entrada; Atrás o seleccionar un destino previo vuelve a esa entrada sin duplicarla. Inicio y Cursos observan la caché de la cuenta y comparten la actualización del repositorio. Una descarga inicial correcta se reutiliza al abrir el otro destino; la acción manual solicita otra actualización y las solicitudes simultáneas comparten el trabajo. Los decoradores de Navigation 3 conservan estado guardable y ViewModels por entrada. Logout cancela el trabajo de la conexión, reinicia la pila y retira la composición privada. Las rutas no contienen tokens, cookies ni contraseñas.
 
 La recuperación inicial y la evaluación docente se resuelven en `App` antes de construir la navegación privada. Una pila restaurada no concede autenticación: se comprueba el acceso vigente. La composición de navegación está asociada a la cuenta para evitar reutilizar el estado de otra identidad.
 
-La barra inferior procede del nodo Figma `445:1182`: Inicio, Cursos, Herramientas, Calendario y Ajustes. Inicio, Cursos y Ajustes tienen destinos operativos. Los otros accesos están deshabilitados y se anuncian como próximos en accesibilidad; no muestran datos simulados. El botón central se dibuja con formas Compose y los iconos son vectores locales, sin URLs de assets en ejecución. Se usan los insets reales del dispositivo, no la barra de estado ni el indicador de inicio dibujados en el mockup.
+La barra inferior procede del nodo Figma `445:1182`: Inicio, Cursos, Herramientas, Calendario y Ajustes. Inicio, Cursos, Calendario y Ajustes tienen destinos operativos. Herramientas está deshabilitado y se anuncia como próximo en accesibilidad. El botón central se dibuja con formas Compose y los iconos son vectores locales, sin URLs de assets en ejecución. Se usan los insets reales del dispositivo, no la barra de estado ni el indicador de inicio dibujados en el mockup.
 
 La navegación lateral se pospone. La separación entre catálogo de secciones, política de pila y contenedor visual permite incorporarla después sin trasladar sesión a la UI ni cambiar las rutas. Tampoco se ha implementado integración con el historial/URLs del navegador web.
 
@@ -95,8 +95,8 @@ Android ensambla su `AppContainer` en `BasadritoApplication` con almacenamiento 
 
 | Comprobación | Resultado | Alcance |
 |---|---|---|
-| Pruebas JVM | 52 aprobadas, 0 omitidas | Repositorios, sesión, Room, fallos de almacenamiento, estado de UI, rutas y contraste. |
-| Pruebas instrumentadas Android 16 | 10 aprobadas, 0 omitidas | Almacén cifrado, Room, apariencia, navegación, cambio de cuenta y aviso de guardado fallido. |
+| Pruebas JVM | 65 aprobadas, 0 omitidas | Repositorios, sesión, Room, agenda personal, agregación académica, descarga autenticada, fallos de almacenamiento, estado de UI, rutas y contraste. |
+| Pruebas instrumentadas Android 16 | 12 aprobadas, 0 omitidas | Almacén cifrado, Room, apariencia, navegación, controles fijos, cambio de cuenta y tareas propias entre Inicio y Calendario. |
 | Compilación | Correcta | Escritorio, APK y fuentes compartidos JS/Wasm. |
 | iOS | Pendiente | Compilación y ejecución. |
 
