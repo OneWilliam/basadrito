@@ -8,6 +8,11 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.forms.submitForm
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.Parameters
+import io.ktor.http.Url
+import io.ktor.http.URLBuilder
+import io.ktor.http.encodedPath
+import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsBytes
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.basadrito.app.data.moodle.dto.*
@@ -42,6 +47,25 @@ class MoodleClient(
     }
     suspend fun getEnrolledUsers(token: String, courseId: Int): Result<List<EnrolledUser>> = apiCall {
         request(token, MoodleFunctions.ENROLLED_USERS, Parameters.build { append("courseid", courseId.toString()) })
+    }
+    /** The token stays in the data adapter and is never attached to an arbitrary supplied origin. */
+    suspend fun downloadFile(token: String, fileUrl: String): Result<ByteArray> = apiCall {
+        val base = Url(baseUrl)
+        val source = Url(fileUrl)
+        require(source.protocol == base.protocol && source.host == base.host && source.port == base.port &&
+            source.user == null && source.password == null &&
+            (source.encodedPath.startsWith("/webservice/pluginfile.php/") || source.encodedPath.startsWith("/pluginfile.php/"))) {
+            "Origen de archivo Moodle no permitido."
+        }
+        val target = URLBuilder(source).apply {
+            if (encodedPath.startsWith("/pluginfile.php/")) encodedPath = "/webservice$encodedPath"
+            parameters.remove("wstoken")
+            parameters["token"] = token
+            fragment = ""
+        }.build()
+        val response = client.get(target)
+        check(response.status.value in 200..299) { "No se pudo descargar el archivo Moodle." }
+        response.bodyAsBytes()
     }
     private suspend inline fun <reified T> request(token: String, function: String, args: Parameters = Parameters.Empty): T {
         val response = client.submitForm(endpointUrl(baseUrl, "webservice/rest/server.php"), Parameters.build {

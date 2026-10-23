@@ -52,8 +52,11 @@ class MoodleDataSource(
         api.getGrades(token, userId)
 
     suspend fun getAssignments(token: String, courseIds: List<Int>): Result<List<Assignment>> =
-        api.getAssignments(token, courseIds).map { response ->
-            response.courses.flatMap { it.assignments }
+        api.getAssignments(token, courseIds).mapCatching { response ->
+            require(response.warnings.isEmpty()) { "No se pudieron consultar las tareas de todos los cursos." }
+            response.courses.flatMap { course -> course.assignments.map { assignment ->
+                if (assignment.course > 0) assignment else assignment.copy(course = course.id)
+            } }
         }
 
     suspend fun getSubmissionStatus(token: String, assignId: Int): Result<SubmissionStatus> =
@@ -62,11 +65,13 @@ class MoodleDataSource(
     suspend fun getCourseContents(token: String, courseId: Int): Result<List<CourseSection>> =
         api.getCourseContents(token, courseId)
 
+    suspend fun downloadFile(token: String, fileUrl: String): Result<ByteArray> = api.downloadFile(token, fileUrl)
+
     suspend fun getCourseTeachers(token: String, courseIds: List<Int>): Result<Map<Int, String>> =
         apiCall {
             val teachers = mutableMapOf<Int, String>()
             for (courseId in courseIds) {
-                val users = api.getEnrolledUsers(token, courseId).getOrNull() ?: continue
+                val users = api.getEnrolledUsers(token, courseId).getOrThrow()
                 val teacher = users.firstOrNull { user -> user.roles.any { it.isTeacher } }
                 if (teacher != null) teachers[courseId] = teacher.fullname
             }

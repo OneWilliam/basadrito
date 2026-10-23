@@ -70,6 +70,13 @@ class IntranetDataSource(
         }
     }
 
+    /** The caller supplies the selected period; the first option is not assumed to be current. */
+    suspend fun getPeriodRecords(period: PeriodOption, isCurrent: Boolean? = null): Result<List<AcademicRecord>> = apiCall {
+        require(period.id.isNotBlank()) { "Selecciona un período académico." }
+        val html = api.getText("$PATH_GRADES/periodo/${period.id}/get").getOrThrow()
+        IntranetHtmlParser.parsePeriodRecords(html, period.name, isCurrent)
+    }
+
     suspend fun getAcademicProgress(cycles: IntRange): Result<List<AcademicRecord>> = apiCall {
         val records = mutableListOf<AcademicRecord>()
         for (cycle in cycles) {

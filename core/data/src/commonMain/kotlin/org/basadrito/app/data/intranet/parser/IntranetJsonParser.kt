@@ -18,7 +18,7 @@ object IntranetJsonParser {
     }.map { dto ->
         ScheduleEntry(
             course = dto.title,
-            detail = dto.description,
+            detail = dto.description.cleanHtml(),
             day = weekdayNameEs(dto.start),
             startTime = isoTimePart(dto.start),
             endTime = isoTimePart(dto.end),

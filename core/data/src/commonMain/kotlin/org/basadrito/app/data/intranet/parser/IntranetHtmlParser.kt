@@ -12,7 +12,11 @@ import org.basadrito.app.data.intranet.format.toDoubleFlexible
 object IntranetHtmlParser {
 
     fun parseProfile(html: String): StudentProfile {
-        return StudentProfile(fullName = profileName(html))
+        fun field(label: String) = Regex("$label[^<]*</t[dh]>\\s*<td[^>]*>([\\s\\S]*?)</td>", RegexOption.IGNORE_CASE)
+            .find(html)?.groupValues?.get(1)?.cleanHtml().orEmpty()
+        return StudentProfile(fullName = profileName(html).ifBlank { field("Nombre(?:s)?") },
+            code = field("C[oó]dig[^<]*"), career = field("Carrera[^<]*"), email = field("Correo[^<]*"),
+            phone = field("Tel[eé][^<]*"), address = field("Direcci[oó][^<]*"))
     }
 
     fun parsePeriods(html: String): List<PeriodOption> =
