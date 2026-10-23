@@ -64,6 +64,25 @@ class AcademicNavigationTest {
         compose.setContent { NavigationContent() }
     }
 
+    @Test
+    fun scrollingCoursesAndSettingsKeepsHeaderControlsInPlace() {
+        render()
+        saveScreenshot("navigation-home-test.png")
+        compose.onNodeWithContentDescription("Cursos").performClick()
+        saveScreenshot("navigation-courses-top-test.png")
+        val back = compose.onNodeWithContentDescription("Volver").fetchSemanticsNode().boundsInRoot
+        val bell = compose.onNodeWithContentDescription("Notificaciones, próximamente").fetchSemanticsNode().boundsInRoot
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Curso ficticio 21"))
+        compose.onNodeWithText("Curso ficticio 21").assertIsDisplayed()
+        assertEquals(back, compose.onNodeWithContentDescription("Volver").fetchSemanticsNode().boundsInRoot)
+        assertEquals(bell, compose.onNodeWithContentDescription("Notificaciones, próximamente").fetchSemanticsNode().boundsInRoot)
+        compose.onNodeWithContentDescription("Ajustes").performClick()
+        saveScreenshot("navigation-settings-top-test.png")
+        val settingsBack = compose.onNodeWithContentDescription("Volver").fetchSemanticsNode().boundsInRoot
+        compose.onNodeWithText("Cerrar sesión").performScrollTo().assertIsDisplayed()
+        assertEquals(settingsBack, compose.onNodeWithContentDescription("Volver").fetchSemanticsNode().boundsInRoot)
+    }
+
     @androidx.compose.runtime.Composable
     private fun NavigationContent() {
         BasadritoTheme(themeMode) {
@@ -78,7 +97,7 @@ class AcademicNavigationTest {
     fun settingsAndSystemBackRetainCourseModelAndScroll() {
         render()
         compose.onNodeWithContentDescription("Cursos").performClick()
-        compose.onNode(hasScrollToIndexAction()).performScrollToIndex(20)
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Curso ficticio 21"))
         compose.onNodeWithText("Curso ficticio 21").assertIsDisplayed()
         saveScreenshot("navigation-courses-test.png")
         compose.onNodeWithContentDescription("Ajustes").performClick()
@@ -117,16 +136,17 @@ class AcademicNavigationTest {
         compose.onNodeWithContentDescription("Volver").performClick()
         compose.onNodeWithContentDescription("Inicio").assertIsSelected()
         compose.onNodeWithContentDescription("Herramientas, próximamente").assertIsNotEnabled()
-        compose.onNodeWithContentDescription("Calendario, próximamente").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Calendario").assertIsEnabled()
     }
 
     @Test
     fun changingAppearanceKeepsDestinationAndCourseState() {
         render()
         compose.onNodeWithContentDescription("Cursos").performClick()
-        compose.onNode(hasScrollToIndexAction()).performScrollToIndex(20)
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Curso ficticio 21"))
         compose.onNodeWithContentDescription("Ajustes").performClick()
-        compose.onNodeWithText("Oscuro").performScrollTo().performClick()
+        compose.onNodeWithText("Modo oscuro").performScrollTo().performClick()
+        compose.onNodeWithText("Oscuro").performClick()
         compose.runOnIdle { assertEquals(ThemeMode.DARK, themeMode) }
         compose.onNodeWithContentDescription("Ajustes").assertIsSelected()
         saveScreenshot("appearance-dark-test.png")

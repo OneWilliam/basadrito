@@ -9,6 +9,7 @@ sealed interface AppDestination : NavKey {
     @Serializable data object Home : AppDestination
     @Serializable data object Courses : AppDestination
     @Serializable data object Settings : AppDestination
+    @Serializable data object Calendar : AppDestination
 }
 
 /** A future sidebar can consume these same sections without changing the stack. */
@@ -16,6 +17,6 @@ internal enum class MainSection(val label: String, val destination: AppDestinati
     HOME("Inicio", AppDestination.Home),
     COURSES("Cursos", AppDestination.Courses),
     TOOLS("Herramientas", null),
-    CALENDAR("Calendario", null),
+    CALENDAR("Calendario", AppDestination.Calendar),
     SETTINGS("Ajustes", AppDestination.Settings),
 }

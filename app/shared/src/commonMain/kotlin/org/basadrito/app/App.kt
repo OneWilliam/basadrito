@@ -60,6 +60,7 @@ fun App(
             themeMode = themeMode,
             onThemeChange = container.appearance::setMode,
             onReconnect = { auth.restoreSession() },
+            createCalendarViewModel = container::createCalendarViewModel,
         )
     }
 }

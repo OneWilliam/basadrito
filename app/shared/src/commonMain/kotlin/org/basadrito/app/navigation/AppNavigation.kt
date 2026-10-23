@@ -21,6 +21,8 @@ import org.basadrito.app.feature.dashboard.DashboardViewModel
 import org.basadrito.app.feature.settings.SettingsScreen
 import org.basadrito.app.designsystem.ThemeMode
 import org.basadrito.app.feature.dashboard.HomeRoute
+import org.basadrito.app.feature.calendar.CalendarRoute
+import org.basadrito.app.feature.calendar.CalendarViewModel
 
 // Explicit serializers also work on non-JVM targets, where route reflection is unavailable.
 private val routeConfiguration = SavedStateConfiguration {
@@ -29,6 +31,7 @@ private val routeConfiguration = SavedStateConfiguration {
             subclass(AppDestination.Home::class, AppDestination.Home.serializer())
             subclass(AppDestination.Courses::class, AppDestination.Courses.serializer())
             subclass(AppDestination.Settings::class, AppDestination.Settings.serializer())
+            subclass(AppDestination.Calendar::class, AppDestination.Calendar.serializer())
         }
     }
 }
@@ -46,6 +49,7 @@ fun AppNavigation(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     onThemeChange: (ThemeMode) -> Unit = {},
     onReconnect: () -> Unit = {},
+    createCalendarViewModel: () -> CalendarViewModel = { CalendarViewModel() },
 ) {
     val access = state.access
     if (access == null) {
@@ -54,13 +58,13 @@ fun AppNavigation(
     }
     if (!canShowAcademicNavigation(state)) return
     key(access.student.username) {
-        AcademicNavigation(access, createDashboardViewModel, onSignOut, themeMode, onThemeChange, onReconnect)
+        AcademicNavigation(access, createDashboardViewModel, onSignOut, themeMode, onThemeChange, onReconnect, createCalendarViewModel)
     }
 }
 
 @Composable
 private fun AcademicNavigation(access: PortalAccess, createDashboardViewModel: () -> DashboardViewModel, onSignOut: () -> Unit,
-    themeMode: ThemeMode, onThemeChange: (ThemeMode) -> Unit, onReconnect: () -> Unit) {
+    themeMode: ThemeMode, onThemeChange: (ThemeMode) -> Unit, onReconnect: () -> Unit, createCalendarViewModel: () -> CalendarViewModel) {
     val backStack = rememberNavBackStack(routeConfiguration, AppDestination.Home)
     val navigator = remember(backStack) { AppNavigator(backStack) }
     MainNavigationScaffold(navigator.current, navigator::select) {
@@ -74,6 +78,7 @@ private fun AcademicNavigation(access: PortalAccess, createDashboardViewModel: (
             entryProvider = entryProvider {
                 entry<AppDestination.Home> { HomeRoute(access, createDashboardViewModel) { navigator.select(MainSection.COURSES) } }
                 entry<AppDestination.Courses> { DashboardRoute(access, createDashboardViewModel, navigator::back) }
+                entry<AppDestination.Calendar> { CalendarRoute(createCalendarViewModel, navigator::back) }
                 entry<AppDestination.Settings> {
                     SettingsScreen(access, navigator::back, themeMode, onThemeChange, onReconnect) {
                         navigator.reset()
